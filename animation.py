@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np
-def animate(i, position, position2,val,val2, ax):
+def animate(i, position, position2,val1, val2, ax):
     # erase previous plot
 
     ax.cla()
@@ -17,7 +17,8 @@ def animate(i, position, position2,val,val2, ax):
     # draw point's current position
     ax.plot(position2[i, 0], position2[i, 1], marker = 'o', markerfacecolor = 'red', markeredgecolor = 'red')
     ax.text(0.15, 0.9, 'i: '+str(i), horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
-    ax.text(0.85, 0.9, 'val: '+str(val[i][0])+"u: "+str(val[i][1]), horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+    ax.text(0.85, 0.9, 'BlueVal: '+ str(val1[i][0])+" u: "+ str(val1[i][1]), horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+    ax.text(0.85, 0.75, 'RedVal: '+ str(val2[i][0])+" u: "+ str(val2[i][1]), horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
     #print(i)
     # fix axes limits
     ax.set_xlim(-500, 500)

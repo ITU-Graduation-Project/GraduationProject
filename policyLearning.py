@@ -147,7 +147,7 @@ for i in range(N):
 	prev = time.time()
 	for j in range(10**5):
 		bestJ = -100
-		for k, action in enumerate (actions):
+		for k, action in enumerate(actions):
 			
 			bx, by, rx, ry = action[j][0], action[j][1], action[j][4], action[j][5]
 			b_yaw, r_yaw = action[j][2], action[j][6]
@@ -165,9 +165,9 @@ for i in range(N):
 	Beta = (np.linalg.pinv(feature_space.T @ feature_space) @ feature_space.T) @ J_vals
 	print(np.array2string(Beta, separator=', '))
 
-	if i%30==0:
+	"""if i%30==0:
 		env = Environment(Beta=Beta)
-		env.simulate_n(1)
+		env.simulate_n(1)"""
 
 print(np.array2string(Beta, separator=', '))
 

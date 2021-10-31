@@ -188,16 +188,17 @@ class ReinforcementModule(Uav):
 		r_yaw = r_yaw 
 		b_yaw = b_yaw 
 		self.featureSpace = []
-		features = [AA,ATA, R, Sa]
+		#features = [AA,ATA, R, Sa]
 		#features = [AA,ATA, absAA, R, AAp, ATAmin, Sa, Sr, absHCA]
-			
+		#features = [absAA, R, AAp, ATAmin, Sa, Sr, absHCA, r_yaw, b_yaw]
+		features = [AA,ATA, absAA, R, AAp, ATAmin, Sa, Sr, absHCA]
 
 		for feature in features:
 			self.featureSpace.append(feature)
 
-		for i in range(len(features)):
+		"""for i in range(len(features)):
 			for j in range(i,len(features)):
-				self.featureSpace.append(features[i] * features[j])
+				self.featureSpace.append(features[i] * features[j])"""
 		#print(len(self.featureSpace))
 		return self.featureSpace
 	def takeAction(self, rival, record = True):
@@ -240,7 +241,7 @@ class ReinforcementModule(Uav):
 			self.position[0], self.position[1], self.yaw, self.roll = bx, by, b_yaw, b_roll
 		rival.position[0], rival.position[1], rival.yaw, rival.roll = rx, ry, r_yaw, r_roll
 
-		self.history.addToHistory(self.position.copy(), -1, optimal_action)
+		self.history.addToHistory(self.position.copy(), maxJ, optimal_action)
 		#self.hist.append([self.position.copy(), -1, u])
 		return optimal_action
 
@@ -255,8 +256,8 @@ class Environment(object):
 		self.dt = 0.05 
 		self.roll_speed = 45 #degrees/s
 		self.g = 9.8 #yer cekimi
-		self.blue_uav = AI([100,100,100], "blue")
-		self.red_uav = ReinforcementModule([1000,1000,100], "red",Beta=Beta)
+		#self.blue_uav = AI([100,100,100], "blue")
+		#self.red_uav = AI([1000,1000,100], "red")
 		
 
 	def simulate(self):
