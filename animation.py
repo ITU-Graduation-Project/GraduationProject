@@ -39,7 +39,7 @@ def animation(position, position2, val, val2):
             val2 = np.delete(val2, i, axis=0)
     print(len(position))
     print(len(val))
-    print(val)
+    #print("selectedPolicies", val)
     #print(position)
     # generate figure and axis
     fig, ax = plt.subplots(figsize = (5, 5))

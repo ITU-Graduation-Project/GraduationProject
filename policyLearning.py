@@ -1,9 +1,10 @@
-from environment import ReinforcementModule, AI
+from environment import ReinforcementModule, AI, Environment
 import numpy as np 
 import random
 import math
 import time
 from reward import GFunction
+import globals
 
 def calculateS(AA, ATA, R, Rd, k = 0.1):
 	ft = 1-(AA/180)
@@ -37,10 +38,14 @@ Xl = np.zeros((10**5,8)) #state space when go to left
 Xr = np.zeros((10**5,8)) #state space when go to right 
 Xf = np.zeros((10**5,8)) #state space when go to forward
 J_vals = np.zeros((10**5))
-feature_space = np.zeros((10**5, 81))
-feature_space_left = np.zeros((10**5, 81))
-feature_space_right = np.zeros((10**5, 81))
-feature_space_forward = np.zeros((10**5, 81))
+feature_space = np.zeros((10**5, globals.FEATURE_NUMBER))
+feature_space_left = np.zeros((10**5, globals.FEATURE_NUMBER))
+feature_space_right = np.zeros((10**5, globals.FEATURE_NUMBER))
+feature_space_forward = np.zeros((10**5, globals.FEATURE_NUMBER))
+
+
+
+
 prev = time.time()
 for i in range (10**5):
 	if(i%1000 == 0):
@@ -62,28 +67,29 @@ for i in range (10**5):
 	X[i] = [bx, by, b_yaw, b_roll, rx, ry, r_yaw, r_roll]
 
 	estimated_red_action = red_uav.takeAction(blue_uav, False)
-	red_uav.myApplyAction(estimated_red_action)
+	for _ in range(1):
+		red_uav.myApplyAction(estimated_red_action)
 
 	Xf[i][4], Xf[i][5], Xf[i][6], Xf[i][7] = red_uav.position[0], red_uav.position[1], red_uav.yaw, red_uav.roll
 	Xr[i][4], Xr[i][5], Xr[i][6], Xr[i][7] = red_uav.position[0], red_uav.position[1], red_uav.yaw, red_uav.roll
 	Xl[i][4], Xl[i][5], Xl[i][6], Xl[i][7] = red_uav.position[0], red_uav.position[1], red_uav.yaw, red_uav.roll
 
 	
-
-	blue_uav.myApplyAction("left")
+	for _ in range(1):
+		blue_uav.myApplyAction("left")
 
 	ATA = getAng(blue_uav.yaw, blue_uav.position[0], blue_uav.position[1], red_uav.position[0], red_uav.position[1])
 	AA = 180-getAng(red_uav.yaw, red_uav.position[0], red_uav.position[1], blue_uav.position[0], blue_uav.position[1])
 	R = ((blue_uav.position[0] - red_uav.position[0])**2 + (blue_uav.position[1]-red_uav.position[1])**2)**0.5
 	S = calculateS(AA, ATA, R, Rd = 3)
-	features = blue_uav.createFeatureSpace(ATA,AA,R, red_uav.yaw, blue_uav.yaw).copy()
+	features = blue_uav.createFeatureSpace(ATA, AA, R, red_uav.yaw, blue_uav.yaw).copy()
 	feature_space_left[i] = features
-
+	#print("leftLen: ",len(feature_space_left))
 	Xl[i][0], Xl[i][1], Xl[i][2], Xl[i][3] = blue_uav.position[0], blue_uav.position[1], blue_uav.yaw, blue_uav.roll
 	blue_uav.position[0], blue_uav.position[1], blue_uav.yaw, blue_uav.roll = bx, by, b_yaw, b_roll
 
-
-	blue_uav.myApplyAction("right")
+	for _ in range(1):
+		blue_uav.myApplyAction("right")
 
 	ATA = getAng(blue_uav.yaw, blue_uav.position[0], blue_uav.position[1], red_uav.position[0], red_uav.position[1])
 	AA = 180-getAng(red_uav.yaw, red_uav.position[0], red_uav.position[1], blue_uav.position[0], blue_uav.position[1])
@@ -91,11 +97,13 @@ for i in range (10**5):
 	S = calculateS(AA, ATA, R, Rd = 3)
 	features = blue_uav.createFeatureSpace(ATA,AA,R, red_uav.yaw, blue_uav.yaw).copy()
 	feature_space_right[i] = features
+	#print("rightLen: ",len(feature_space_right))
 
 	Xr[i][0], Xr[i][1], Xr[i][2], Xr[i][3] = blue_uav.position[0], blue_uav.position[1], blue_uav.yaw, blue_uav.roll
 	blue_uav.position[0], blue_uav.position[1], blue_uav.yaw, blue_uav.roll = bx, by, b_yaw, b_roll
 
-	blue_uav.myApplyAction("forward")
+	for _ in range(1):
+		blue_uav.myApplyAction("forward")
 
 	ATA = getAng(blue_uav.yaw, blue_uav.position[0], blue_uav.position[1], red_uav.position[0], red_uav.position[1])
 	AA = 180-getAng(red_uav.yaw, red_uav.position[0], red_uav.position[1], blue_uav.position[0], blue_uav.position[1])
@@ -103,6 +111,7 @@ for i in range (10**5):
 	S = calculateS(AA, ATA, R, Rd = 3)
 	features = blue_uav.createFeatureSpace(ATA,AA,R, red_uav.yaw, blue_uav.yaw).copy()
 	feature_space_forward[i] = features
+	#print("forwardLen: ",len(feature_space_forward))
 
 	Xf[i][0], Xf[i][1], Xf[i][2], Xf[i][3] = blue_uav.position[0], blue_uav.position[1], blue_uav.yaw, blue_uav.roll
 	blue_uav.position[0], blue_uav.position[1], blue_uav.yaw, blue_uav.roll = bx, by, b_yaw, b_roll
@@ -117,16 +126,15 @@ for i in range (10**5):
 	S = calculateS(AA, ATA, R, Rd = 3)
 	features = blue_uav.createFeatureSpace(ATA,AA,R, r_yaw, b_yaw).copy()
 	feature_space[i] = features
+	#print("featureLen: ",len(feature_space))
+	
 	J_vals[i] = S
-
-
 print(time.time()-prev)
 
-
-
+print(feature_space)
 Beta = (np.linalg.pinv(feature_space.T @ feature_space) @ feature_space.T) @ J_vals
-print("Beta:",Beta)
-#print(feature_space)
+#Beta = globals.Beta
+print("Beta:",np.array2string(Beta, separator=', '))
 print(time.time()-prev)
 
 
@@ -155,6 +163,11 @@ for i in range(N):
 
 		J_vals[j] = bestJ
 	Beta = (np.linalg.pinv(feature_space.T @ feature_space) @ feature_space.T) @ J_vals
-	print(Beta)
-print(Beta)
+	print(np.array2string(Beta, separator=', '))
+
+	if i%30==0:
+		env = Environment(Beta=Beta)
+		env.simulate_n(1)
+
+print(np.array2string(Beta, separator=', '))
 
