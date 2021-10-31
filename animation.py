@@ -20,8 +20,8 @@ def animate(i, position, position2,val,val2, ax):
     ax.text(0.85, 0.9, 'val: '+str(val[i][0])+"u: "+str(val[i][1]), horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
     #print(i)
     # fix axes limits
-    ax.set_xlim(0, 2000)
-    ax.set_ylim(0, 2000)
+    ax.set_xlim(-500, 500)
+    ax.set_ylim(-500, 500)
 
     
 
@@ -53,4 +53,7 @@ def animation(position, position2, val, val2):
 def show(env):
     blue_pos, blue_val = env.blue_uav.history.getHistory()
     red_pos, red_val = env.red_uav.history.getHistory()
+    print("blue_pos:", len(blue_pos))
+    print("red_pos:", len(red_pos))
+    
     animation(blue_pos, red_pos, blue_val, red_val)
