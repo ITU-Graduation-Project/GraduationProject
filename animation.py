@@ -21,8 +21,8 @@ def animate(i, position, position2,val1, val2, ax):
     ax.text(0.85, 0.75, 'RedVal: '+ str(val2[i][0])+" u: "+ str(val2[i][1]), horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
     #print(i)
     # fix axes limits
-    ax.set_xlim(-500, 500)
-    ax.set_ylim(-500, 500)
+    #ax.set_xlim(-1700, 700)
+    #ax.set_ylim(-1700, 700)
 
     
 

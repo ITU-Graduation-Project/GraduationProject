@@ -32,6 +32,11 @@ class AnimationHistory():
 
 		print(position_history.shape)
 		return position_history, value_history
+	def savHist():
+		"""
+			saves history to blabla.txt
+		"""
+		pass
 
 
 class Uav(abc.ABC):
@@ -176,7 +181,7 @@ class ReinforcementModule(Uav):
 		Uav.__init__(self, position, color, max_roll=globals.REINFORCEMENT_MAX_ROLL)
 		self.featureSpace = []
 		self.Beta = Beta
-
+		self.currJ = 0
 	def createFeatureSpace(self, ATA, AA, R, r_yaw, b_yaw, Rd = 3, k = 0.1):
 		absAA = abs(AA)
 		R = R 
@@ -220,7 +225,7 @@ class ReinforcementModule(Uav):
 
 		actions = ["right", "left", "forward"]
 		maxJ = -100
-		print("*"*10)
+		#print("*"*10)
 		
 		for action in actions:
 			self.myApplyAction(action)
@@ -230,7 +235,7 @@ class ReinforcementModule(Uav):
 
 			self.createFeatureSpace(ATA,AA,R, rival.yaw, self.yaw)
 			temp = GFunction(ATA, AA, R) + 0.8*self.Beta @ self.featureSpace #0.8 discount factor
-			print(action[0], ":", temp, "ATA", ATA, "AA", AA)
+			#print(action[0], ":", temp, "ATA", ATA, "AA", AA)
 			if ATA<0 or AA<0:
 				print("&&&&&&&&&")
 				time.sleep(10)
@@ -240,7 +245,8 @@ class ReinforcementModule(Uav):
 				optimal_action = action
 			self.position[0], self.position[1], self.yaw, self.roll = bx, by, b_yaw, b_roll
 		rival.position[0], rival.position[1], rival.yaw, rival.roll = rx, ry, r_yaw, r_roll
-
+		self.currJ = maxJ
+		print(self.currJ)
 		self.history.addToHistory(self.position.copy(), maxJ, optimal_action)
 		#self.hist.append([self.position.copy(), -1, u])
 		return optimal_action
@@ -265,8 +271,13 @@ class Environment(object):
 			simulates the air combat for 0.25s
 		"""
 		ub = ur = ""
-		for i in range(3000):
+		tresh = 1.2
+		i = 0
+		while(self.blue_uav.currJ < tresh):#while not reinforcement kazanmak
 			print("ii:", i)
+			i+=1
+			if(i>20_000):
+				break
 			for j in range (5):
 					if(j%5 == 0):
 						ub = self.blue_uav.takeAction(self.red_uav)
@@ -278,8 +289,8 @@ class Environment(object):
 
 	def simulate_n(self, n):
 		for _ in range(n):
-			self.blue_uav = ReinforcementModule([random.randint(-100, 100), random.randint(-100, 100), 100], "blue",self.Beta)
-			self.red_uav = AI([200, 200, 100], "red")
+			self.blue_uav = ReinforcementModule([random.randint(-50, 50), random.randint(-50, 50), 100], "blue",self.Beta)
+			self.red_uav = AI([random.randint(-50, 50), random.randint(-50, 50), 100], "red")
 			self.simulate()
 			#Thread(target=self.simulate).start()
 			show(self)
