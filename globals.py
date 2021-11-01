@@ -1,8 +1,9 @@
 import numpy as np
+Nrools = 100
 
 
 REINFORCEMENT_MAX_ROLL=23
-AI_MAX_ROLL=20
+AI_MAX_ROLL=23.2
 
 FEATURE_NUMBER = 9
 

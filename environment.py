@@ -206,11 +206,10 @@ class ReinforcementModule(Uav):
 				self.featureSpace.append(features[i] * features[j])"""
 		#print(len(self.featureSpace))
 		return self.featureSpace
-	def takeAction(self, rival, record = True):
+	def takeActionApprox(self, rival, record = True):
 		"""
 			Takes Action according to uav's policy
 		"""
-		  
 		bx, by = self.position[0], self.position[1]
 		rx, ry = rival.position[0], rival.position[1]
 
@@ -219,14 +218,12 @@ class ReinforcementModule(Uav):
 
 		r_yaw  = rival.yaw
 		r_roll = rival.roll
+		actions = ["right", "left", "forward"]
+		maxJ = -100
 
 		estimated_rival_action = rival.takeAction(self, False)
 		rival.myApplyAction(estimated_rival_action)
 
-		actions = ["right", "left", "forward"]
-		maxJ = -100
-		#print("*"*10)
-		
 		for action in actions:
 			self.myApplyAction(action)
 			ATA = self.getAng(self.yaw, self.position[0], self.position[1], rival.position[0], rival.position[1])
@@ -245,13 +242,46 @@ class ReinforcementModule(Uav):
 				optimal_action = action
 			self.position[0], self.position[1], self.yaw, self.roll = bx, by, b_yaw, b_roll
 		rival.position[0], rival.position[1], rival.yaw, rival.roll = rx, ry, r_yaw, r_roll
-		self.currJ = maxJ
-		print(self.currJ)
-		self.history.addToHistory(self.position.copy(), maxJ, optimal_action)
+		
 		#self.hist.append([self.position.copy(), -1, u])
 		return optimal_action
 
+	def takeAction(self, rival, record = True):
+		actions = ["right", "left", "forward"]
+		bx, by = self.position[0], self.position[1]
+		rx, ry = rival.position[0], rival.position[1]
 
+		b_yaw  = self.yaw
+		b_roll = self.roll
+
+		r_yaw  = rival.yaw
+		r_roll = rival.roll
+		maxJ = -100
+		for ub in actions:
+			estimated_rival_action = rival.takeAction(self, False)
+			self.myApplyAction(ub)
+			rival.myApplyAction(estimated_rival_action)
+			for _ in range(globals.Nrools):
+				u_nom = self.takeActionApprox(rival)
+				estimated_rival_action = rival.takeAction(self, False)
+				self.myApplyAction(u_nom)
+				rival.myApplyAction(estimated_rival_action)
+
+			ATA = self.getAng(self.yaw, self.position[0], self.position[1], rival.position[0], rival.position[1])
+			AA = self.getAng(rival.yaw, self.position[0], self.position[1], rival.position[0], rival.position[1])
+			R = ((self.position[0]-rival.position[0])**2 + (self.position[1]-rival.position[1])**2)**0.5
+
+			self.createFeatureSpace(ATA,AA,R, rival.yaw, self.yaw)
+			temp = GFunction(ATA, AA, R) + 0.8*self.Beta @ self.featureSpace #0.8 discount factor
+			if(temp > maxJ):
+				maxJ = temp
+				optimal_action = ub
+			self.position[0], self.position[1], self.yaw, self.roll = bx, by, b_yaw, b_roll
+			rival.position[0], rival.position[1], rival.yaw, rival.roll = rx, ry, r_yaw, r_roll
+		self.currJ = maxJ
+		self.history.addToHistory(self.position.copy(), maxJ, optimal_action)
+
+		return optimal_action
 class Environment(object):
 	"""
 		The environment to simulate air combat 
@@ -276,7 +306,7 @@ class Environment(object):
 		while(self.blue_uav.currJ < tresh):#while not reinforcement kazanmak
 			print("ii:", i)
 			i+=1
-			if(i>20_000):
+			if(i>15_000):
 				break
 			for j in range (5):
 					if(j%5 == 0):
