@@ -231,7 +231,7 @@ class ReinforcementModule(Uav):
 			R = ((self.position[0]-rival.position[0])**2 + (self.position[1]-rival.position[1])**2)**0.5
 
 			self.createFeatureSpace(ATA,AA,R, rival.yaw, self.yaw)
-			temp = GFunction(ATA, AA, R) + 0.8*self.Beta @ self.featureSpace #0.8 discount factor
+			temp = GFunction(ATA, AA, R) + 0.95*self.Beta @ self.featureSpace #0.95 discount factor
 			#print(action[0], ":", temp, "ATA", ATA, "AA", AA)
 			if ATA<0 or AA<0:
 				print("&&&&&&&&&")
@@ -272,7 +272,7 @@ class ReinforcementModule(Uav):
 			R = ((self.position[0]-rival.position[0])**2 + (self.position[1]-rival.position[1])**2)**0.5
 
 			self.createFeatureSpace(ATA,AA,R, rival.yaw, self.yaw)
-			temp = GFunction(ATA, AA, R) + 0.8*self.Beta @ self.featureSpace #0.8 discount factor
+			temp = GFunction(ATA, AA, R) + 0.95*self.Beta @ self.featureSpace #0.95 discount factor
 			if(temp > maxJ):
 				maxJ = temp
 				optimal_action = ub
@@ -301,12 +301,12 @@ class Environment(object):
 			simulates the air combat for 0.25s
 		"""
 		ub = ur = ""
-		tresh = 1.2
+		tresh = 3.5
 		i = 0
 		while(self.blue_uav.currJ < tresh):#while not reinforcement kazanmak
 			print("ii:", i)
 			i+=1
-			if(i>15_000):
+			if(i>10_000):
 				break
 			for j in range (5):
 					if(j%5 == 0):
@@ -319,8 +319,8 @@ class Environment(object):
 
 	def simulate_n(self, n):
 		for _ in range(n):
-			self.blue_uav = ReinforcementModule([random.randint(-50, 50), random.randint(-50, 50), 100], "blue",self.Beta)
-			self.red_uav = AI([random.randint(-50, 50), random.randint(-50, 50), 100], "red")
+			self.blue_uav = ReinforcementModule([random.randint(-5, 5), random.randint(-5, 5), 100], "blue",self.Beta)
+			self.red_uav = AI([random.randint(-5, 5), random.randint(-5, 5), 100], "red")
 			self.simulate()
 			#Thread(target=self.simulate).start()
 			show(self)

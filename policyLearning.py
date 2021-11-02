@@ -50,13 +50,29 @@ prev = time.time()
 for i in range (10**5):
 	if(i%1000 == 0):
 		print(i)
-	bx, by = random.randint(-100, 100), random.randint(-100, 100)
-	rx, ry = random.randint(-100, 100), random.randint(-100, 100)
+	bx, by = random.randint(-50, 50), random.randint(-50, 50)
+	rx, ry = random.randint(-50, 50), random.randint(-50, 50)
 
 	blue_uav = ReinforcementModule([bx, by, 100], "blue")
 	red_uav = AI([rx, ry, 100], "red")
 
-	
+	if(random.randint(0,250) == 66):
+		value = 0 
+		counter = 0
+		while(value < 1):
+			blue_uav.position[0], blue_uav.position[1] = random.randint(-50, 50), random.randint(-50, 50)
+			red_uav.position[0], red_uav.position[1] = random.randint(-50, 50), random.randint(-50, 50)
+			ATA = getAng(blue_uav.yaw, blue_uav.position[0], blue_uav.position[1], red_uav.position[0], red_uav.position[1])
+			AA = 180-getAng(red_uav.yaw, red_uav.position[0], red_uav.position[1], blue_uav.position[0], blue_uav.position[1])
+			R = ((blue_uav.position[0] - red_uav.position[0])**2 + (blue_uav.position[1]-red_uav.position[1])**2)**0.5
+			g_val = GFunction(R, AA, ATA)
+			value = calculateS(AA, ATA, R, Rd = 3) + g_val
+			counter += 1
+			if(counter == 25_000):
+				break
+
+	bx, by = blue_uav.position[0], blue_uav.position[1]
+	rx, ry = red_uav.position[0], red_uav.position[1]
 
 	b_yaw  = blue_uav.yaw
 	b_roll = blue_uav.roll
@@ -124,16 +140,23 @@ for i in range (10**5):
 	AA = 180-getAng(r_yaw, rx, ry, bx, by)
 	R = ((bx-rx)**2 + (by-ry)**2)**0.5
 	S = calculateS(AA, ATA, R, Rd = 3)
+	g_val = GFunction(R, AA, ATA)
 	features = blue_uav.createFeatureSpace(ATA,AA,R, r_yaw, b_yaw).copy()
 	feature_space[i] = features
 	#print("featureLen: ",len(feature_space))
 	
-	J_vals[i] = S
+	J_vals[i] = S + g_val
 print(time.time()-prev)
 
-print(feature_space)
+print("feature_space:",feature_space)
 Beta = (np.linalg.pinv(feature_space.T @ feature_space) @ feature_space.T) @ J_vals
-#Beta = globals.Beta
+
+print("J_vals[np.where[J_vals>0.9]]:", J_vals[np.where(J_vals>0.9)])
+print("np.where[J_vals>0.9]:", np.where(J_vals>0.9))
+print("J_vals[np.where[J_vals>0.9]]:", len(J_vals[np.where(J_vals>0.9)]))
+
+time.sleep(10)
+Beta = globals.Beta########### BE CAREFULLLLLL
 print("Beta:",np.array2string(Beta, separator=', '))
 print(time.time()-prev)
 
@@ -156,12 +179,15 @@ for i in range(N):
 			R = ((bx-rx)**2 + (by-ry)**2)**0.5
 			g_val = GFunction(R, AA, ATA)
 			############## feature space i 3 le bu sayede bir sonraki durumun feature spacesine bakabilmiş ol
-			temp = 0.8*(feature_list[k][j,:] @ Beta) + g_val #0.8 discount factor
+			temp = 0.95*(feature_list[k][j,:] @ Beta) + g_val #0.95 discount factor
 			##############
 			if(temp > bestJ):
 				bestJ = temp
 
 		J_vals[j] = bestJ
+	print("J_vals[np.where[J_vals>0.9]]:", J_vals[np.where(J_vals>0.9)])
+	print("np.where[J_vals>0.9]:", np.where(J_vals>0.9))
+	print("len(J_vals[np.where[J_vals>0.9]]):", len(J_vals[np.where(J_vals>0.9)]))
 	Beta = (np.linalg.pinv(feature_space.T @ feature_space) @ feature_space.T) @ J_vals
 	print(np.array2string(Beta, separator=', '))
 
