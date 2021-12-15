@@ -2,16 +2,13 @@ import gym
 from gym import spaces
 import numpy as np
 import time
-
+import random
 from render.SimulationGraph import SimulationGraph
 
 MAX_STEPS = 20000
 
 
 LOOKBACK_WINDOW_SIZE = 40
-
-
-
 
 class SimulationEnv(gym.Env):
     """A 3D flight simulation environment for OpenAI gym"""
@@ -21,6 +18,7 @@ class SimulationEnv(gym.Env):
     def __init__(self):
         super(SimulationEnv, self).__init__()
 
+        self.location = [random.randint(0,10), random.randint(0,10), random.randint(0,10)]
         # Set actionSpace
         self.action_space = spaces.Box(
             low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
@@ -80,8 +78,9 @@ class SimulationEnv(gym.Env):
             if self.visualization == None:
                 self.visualization = SimulationGraph(
                 kwargs.get('title', None))
-            if self.current_step > 40:
-                self.visualization.render()
+            if self.current_step is not None:
+                print("rendering")
+                self.visualization.render(self.location)
     def close(self):
         if self.visualization != None:
             self.visualization.close()
