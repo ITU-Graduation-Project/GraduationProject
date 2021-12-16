@@ -9,7 +9,7 @@ i = 0
 a = b = c = 0
 
 while True:
-    action = [1, 1, 1]
+    """action = [1, 1, 1]
     with keyboard.Events() as events:
         event = events.get(1e6)
         if event.key == keyboard.KeyCode.from_char('s'):
@@ -19,8 +19,8 @@ while True:
         if event.key == keyboard.KeyCode.from_char('d'):
             action[0] = 2
         if event.key == keyboard.KeyCode.from_char('a'):
-            action[0] = 0
-
+            action[0] = 0"""
+    action = env.action_space.sample()
     #print(action)
     #action = [1, 0, 1]
     #print("action:", action)

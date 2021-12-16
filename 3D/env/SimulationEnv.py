@@ -18,6 +18,8 @@ class SimulationEnv(gym.Env):
     def __init__(self):
         super(SimulationEnv, self).__init__()
         self.uav1 = UAV()
+        self.uav2 = UAV()
+        self.uav_list = [self.uav1, self.uav2]
         self.dt = 0.05  # each step time
         self.g = 9.81
         # Set actionSpace
@@ -49,41 +51,42 @@ class SimulationEnv(gym.Env):
         return obs
 
     def _take_action(self, action):
-        self.uav1.roll = self.uav1.roll + (action[0] - 1) * self.dt * self.uav1.der_roll
-        self.uav1.pitch = self.uav1.pitch + (action[1] - 1) * self.dt * self.uav1.der_pitch
-        self.uav1.speed = self.uav1.speed + (action[2] - 1) * self.dt * self.uav1.der_speed
+        for i, uav in enumerate(self.uav_list):
+            uav.roll = uav.roll + (action[0] - 1) * self.dt * uav.der_roll
+            uav.pitch = uav.pitch + (action[1] - 1) * self.dt * uav.der_pitch
+            uav.speed = uav.speed + (action[2] - 1) * self.dt * uav.der_speed
 
-        # check for boundaries
-        if self.uav1.roll > self.uav1.max_roll:
-            self.uav1.roll = self.uav1.max_roll
-        elif self.uav1.roll < -self.uav1.max_roll:
-            self.uav1.roll = -self.uav1.max_roll
+            # check for boundaries
+            if uav.roll > uav.max_roll:
+                uav.roll = uav.max_roll
+            elif uav.roll < -uav.max_roll:
+                uav.roll = -uav.max_roll
 
-        if self.uav1.pitch > self.uav1.max_pitch:
-            self.uav1.pitch = self.uav1.max_pitch
-        elif self.uav1.pitch < -self.uav1.max_pitch:
-            self.uav1.pitch = -self.uav1.max_pitch
+            if uav.pitch > uav.max_pitch:
+                uav.pitch = uav.max_pitch
+            elif uav.pitch < -uav.max_pitch:
+                uav.pitch = -uav.max_pitch
 
-        if self.uav1.speed > self.uav1.max_speed:
-            self.uav1.speed = self.uav1.max_speed
-        elif self.uav1.speed < self.uav1.min_speed:
-            self.uav1.speed = self.uav1.min_speed
+            if uav.speed > uav.max_speed:
+                uav.speed = uav.max_speed
+            elif uav.speed < uav.min_speed:
+                uav.speed = uav.min_speed
 
-        n = 1/np.cos(np.radians(self.uav1.roll))
-        der_yaw = np.degrees((self.g * np.sqrt(n**2-1))/self.uav1.speed)
-        self.uav1.yaw += der_yaw * self.dt
-        self.uav1.yaw = self.uav1.yaw % 360
+            n = 1/np.cos(np.radians(uav.roll))
+            der_yaw = np.degrees((self.g * np.sqrt(n**2-1))/uav.speed)
+            uav.yaw += der_yaw * self.dt
+            uav.yaw = uav.yaw % 360
 
-        der_x = self.uav1.speed * np.cos(np.radians(self.uav1.yaw)) * np.cos(np.radians(self.uav1.pitch))
-        der_y = self.uav1.speed * np.sin(np.radians(self.uav1.yaw)) * np.cos(np.radians(self.uav1.pitch))
-        der_z = self.uav1.speed * np.sin(np.radians(self.uav1.pitch))
+            der_x = uav.speed * np.cos(np.radians(uav.yaw)) * np.cos(np.radians(uav.pitch))
+            der_y = uav.speed * np.sin(np.radians(uav.yaw)) * np.cos(np.radians(uav.pitch))
+            der_z = uav.speed * np.sin(np.radians(uav.pitch))
 
-        self.uav1.position[0] += der_x * self.dt
-        self.uav1.position[1] += der_y * self.dt
-        self.uav1.position[2] += der_z * self.dt
-        #print("self.uav1.roll, self.uav1.pitch, self.uav1.speed:", self.uav1.roll, self.uav1.pitch, self.uav1.speed)
+            uav.position[0] += der_x * self.dt
+            uav.position[1] += der_y * self.dt
+            uav.position[2] += der_z * self.dt
+        #print("uav.roll, uav.pitch, uav.speed:", uav.roll, uav.pitch, uav.speed)
         #print("der_x, der_y, der_z:", der_x, der_y, der_z)
-        #print("self.uav1.position:", self.uav1.position)
+        #print("uav.position:", uav.position)
 
     def step(self, action):
         # Execute one time step within the environment
@@ -110,7 +113,7 @@ class SimulationEnv(gym.Env):
                 self.visualization = SimulationGraph(
                     kwargs.get('title', None))
             if self.current_step is not None:
-                self.visualization.render(self.uav1.position)
+                self.visualization.render(self.uav1.position, self.uav2.position)
 
     def close(self):
         if self.visualization != None:
