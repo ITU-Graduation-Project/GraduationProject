@@ -29,11 +29,13 @@ class SimulationEnv(gym.Env):
         self.action_space = spaces.Tuple((
             spaces.Discrete(3),
             spaces.Discrete(3),
+            spaces.Discrete(3),
+            spaces.Discrete(3),
+            spaces.Discrete(3),
             spaces.Discrete(3)))
 
         # Set Observation space
-        self.observation_space = spaces.Box(
-            low=0, high=1, shape=(5, 40 + 2), dtype=np.float16)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(14, 1), dtype=np.float16)
 
     def get_na(self):
         der_pu = np.array([self.uav1.der_x, self.uav1.der_y, self.uav1.der_z])
@@ -49,41 +51,52 @@ class SimulationEnv(gym.Env):
         print("na:", na)
         return na
 
-    def get_nd(self, d_max = 3, d_min = 50, beta1 = 1, beta2 = -1):
+    def get_nd(self, d_max=3, d_min=50, beta1=1, beta2=-1):
         pu = np.array(self.uav1.position)
         pt = np.array(self.uav2.position)
 
         temp1 = beta1 * (d_max - np.linalg.norm(pt - pu)) / (d_max - d_min)
         #  temp2 = 1 - np.exp(-((np.linalg.norm(pt-pu) - d_min)**beta2))
 
-        nd = temp1 #  * temp2
+        nd = temp1  # * temp2
 
         print("nd:", nd)
         return nd
 
-    def calculate_advantage(self, w1 = 0.5, w2 = 0.5):
+    def calculate_advantage(self, w1=0.5, w2=0.5):
         return w1 * self.get_na() + w2 * self.get_nd()
 
     def _next_observation(self):
-        frame = np.zeros((5, 40 + 1))
+        obs = np.zeros((14, 1))
 
-        # Put obs data
-        np.put(frame, [0, 4], [
-            0, 0, 0, 0, 0
-        ])
+        ###first uav
+        obs[0][0] = self.uav1.position[0]
+        obs[1][0] = self.uav1.position[1]
+        obs[2][0] = self.uav1.position[2]
 
-        # Append additional data if necessary
-        obs = np.append(frame, [
-            [0], [0], [0], [0], [0],
-        ], axis=1)
+        obs[3][0] = self.uav1.roll
+        obs[4][0] = self.uav1.pitch
+        obs[5][0] = self.uav1.yaw
 
+        obs[6][0] = self.uav1.speed
+
+        ###second uav
+        obs[7][0] = self.uav2.position[0]
+        obs[8][0] = self.uav2.position[1]
+        obs[9][0] = self.uav2.position[2]
+
+        obs[10][0] = self.uav2.roll
+        obs[11][0] = self.uav2.pitch
+        obs[12][0] = self.uav2.yaw
+
+        obs[13][0] = self.uav2.speed
         return obs
 
     def _take_action(self, action):
         for i, uav in enumerate(self.uav_list):
-            uav.roll = uav.roll + (action[0] - 1) * self.dt * uav.der_roll
-            uav.pitch = uav.pitch + (action[1] - 1) * self.dt * uav.der_pitch
-            uav.speed = uav.speed + (action[2] - 1) * self.dt * uav.der_speed
+            uav.roll = uav.roll + (action[i * 3 + 0] - 1) * self.dt * uav.der_roll
+            uav.pitch = uav.pitch + (action[i * 3 + 1] - 1) * self.dt * uav.der_pitch
+            uav.speed = uav.speed + (action[i * 3 + 2] - 1) * self.dt * uav.der_speed
 
             # check for boundaries
             if uav.roll > uav.max_roll:
@@ -101,8 +114,8 @@ class SimulationEnv(gym.Env):
             elif uav.speed < uav.min_speed:
                 uav.speed = uav.min_speed
 
-            n = 1/np.cos(np.radians(uav.roll))
-            der_yaw = np.degrees((self.g * np.sqrt(n**2-1))/uav.speed)
+            n = 1 / np.cos(np.radians(uav.roll))
+            der_yaw = np.degrees((self.g * np.sqrt(n ** 2 - 1)) / uav.speed)
             uav.yaw += der_yaw * self.dt
             uav.yaw = uav.yaw % 360
 
@@ -113,9 +126,9 @@ class SimulationEnv(gym.Env):
             uav.position[0] += uav.der_x * self.dt
             uav.position[1] += uav.der_y * self.dt
             uav.position[2] += uav.der_z * self.dt
-        #print("uav.roll, uav.pitch, uav.speed:", uav.roll, uav.pitch, uav.speed)
-        #print("der_x, der_y, der_z:", der_x, der_y, der_z)
-        #print("uav.position:", uav.position)
+        # print("uav.roll, uav.pitch, uav.speed:", uav.roll, uav.pitch, uav.speed)
+        # print("der_x, der_y, der_z:", der_x, der_y, der_z)
+        # print("uav.position:", uav.position)
 
     def step(self, action):
         # Execute one time step within the environment

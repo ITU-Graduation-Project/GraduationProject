@@ -27,7 +27,7 @@ class SimulationGraph:
             yield np.array([np.cos(phi), np.sin(phi), phi])
             phi += 2*np.pi/n
 
-    def update(self,num, data, line):
+    def update(self, num, data, line):
         line.set_data(data[:2, :num])
         line.set_3d_properties(data[2, :num])
 

@@ -1,5 +1,5 @@
 from env.SimulationEnv import SimulationEnv
-from pynput import keyboard
+#from pynput import keyboard
 
 
 env = SimulationEnv()
@@ -20,8 +20,10 @@ while True:
             action[0] = 2
         if event.key == keyboard.KeyCode.from_char('a'):
             action[0] = 0"""
-    input()
     action = env.action_space.sample()
+    obs = env.observation_space.sample()
+    print("obs:", obs)
+    input()
     #print(action)
     #action = [1, 0, 1]
     #print("action:", action)
