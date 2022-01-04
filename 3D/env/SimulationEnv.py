@@ -35,6 +35,35 @@ class SimulationEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(5, 40 + 2), dtype=np.float16)
 
+    def get_na(self):
+        der_pu = np.array([self.uav1.der_x, self.uav1.der_y, self.uav1.der_z])
+        der_pt = np.array([self.uav2.der_x, self.uav2.der_y, self.uav2.der_z])
+        pu = np.array(self.uav1.position)
+        pt = np.array(self.uav2.position)
+
+        temp1 = (der_pu @ (pt - pu)) / np.linalg.norm(pt - pu)
+        temp2 = (der_pt @ (pu - pt)) / np.linalg.norm(pu - pt)
+
+        na = temp1 - temp2
+
+        print("na:", na)
+        return na
+
+    def get_nd(self, d_max = 3, d_min = 50, beta1 = 1, beta2 = -1):
+        pu = np.array(self.uav1.position)
+        pt = np.array(self.uav2.position)
+
+        temp1 = beta1 * (d_max - np.linalg.norm(pt - pu)) / (d_max - d_min)
+        #  temp2 = 1 - np.exp(-((np.linalg.norm(pt-pu) - d_min)**beta2))
+
+        nd = temp1 #  * temp2
+
+        print("nd:", nd)
+        return nd
+
+    def calculate_advantage(self, w1 = 0.5, w2 = 0.5):
+        return w1 * self.get_na() + w2 * self.get_nd()
+
     def _next_observation(self):
         frame = np.zeros((5, 40 + 1))
 
@@ -77,13 +106,13 @@ class SimulationEnv(gym.Env):
             uav.yaw += der_yaw * self.dt
             uav.yaw = uav.yaw % 360
 
-            der_x = uav.speed * np.cos(np.radians(uav.yaw)) * np.cos(np.radians(uav.pitch))
-            der_y = uav.speed * np.sin(np.radians(uav.yaw)) * np.cos(np.radians(uav.pitch))
-            der_z = uav.speed * np.sin(np.radians(uav.pitch))
+            uav.der_x = uav.speed * np.cos(np.radians(uav.yaw)) * np.cos(np.radians(uav.pitch))
+            uav.der_y = uav.speed * np.sin(np.radians(uav.yaw)) * np.cos(np.radians(uav.pitch))
+            uav.der_z = uav.speed * np.sin(np.radians(uav.pitch))
 
-            uav.position[0] += der_x * self.dt
-            uav.position[1] += der_y * self.dt
-            uav.position[2] += der_z * self.dt
+            uav.position[0] += uav.der_x * self.dt
+            uav.position[1] += uav.der_y * self.dt
+            uav.position[2] += uav.der_z * self.dt
         #print("uav.roll, uav.pitch, uav.speed:", uav.roll, uav.pitch, uav.speed)
         #print("der_x, der_y, der_z:", der_x, der_y, der_z)
         #print("uav.position:", uav.position)
@@ -91,6 +120,8 @@ class SimulationEnv(gym.Env):
     def step(self, action):
         # Execute one time step within the environment
         self._take_action(action)
+
+        print("self.calculate_advantage():", self.calculate_advantage())
 
         self.current_step += 1
 
@@ -109,7 +140,7 @@ class SimulationEnv(gym.Env):
     def render(self, mode='live', **kwargs):
         # Render the environment to the screen
         if mode == 'live':
-            if self.visualization == None:
+            if self.visualization is None:
                 self.visualization = SimulationGraph(
                     kwargs.get('title', None))
             if self.current_step is not None:

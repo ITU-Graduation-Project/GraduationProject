@@ -1,7 +1,6 @@
 import numpy as np
 import time 
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 from numpy.core.fromnumeric import argmax, argmin
 from numpy.lib.function_base import append
 from animation import show

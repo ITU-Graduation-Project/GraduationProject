@@ -33,11 +33,12 @@ class SimulationGraph:
 
 
     def render(self, new_data1, new_data2):
+
         self.map_ax.scatter3D([new_data1[0]], [new_data1[1]], [new_data1[2]], color='blue')
         self.map_ax.scatter3D([new_data2[0]], [new_data2[1]], [new_data2[2]], color='red')
         plt.show(block=False)
         # Necessary to view frames before they are unrendered
-        plt.pause(0.1)
+        plt.pause(0.0001)
 
     def close(self):
         plt.close()
