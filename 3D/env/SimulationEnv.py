@@ -1,11 +1,8 @@
 import gym
 from gym import spaces
 import numpy as np
-import random
 from render.SimulationGraph import SimulationGraph
 from env.uav import UAV
-
-MAX_STEPS = 20000
 
 LOOKBACK_WINDOW_SIZE = 40
 
@@ -48,7 +45,7 @@ class SimulationEnv(gym.Env):
 
         na = temp1 - temp2
 
-        print("na:", na)
+        #print("na:", na)
         return na
 
     def get_nd(self, d_max=3, d_min=50, beta1=1, beta2=-1):
@@ -60,36 +57,36 @@ class SimulationEnv(gym.Env):
 
         nd = temp1  # * temp2
 
-        print("nd:", nd)
+        #print("nd:", nd)
         return nd
 
     def calculate_advantage(self, w1=0.5, w2=0.5):
         return w1 * self.get_na() + w2 * self.get_nd()
 
     def _next_observation(self):
-        obs = np.zeros((14, 1))
+        obs = np.zeros(14)
 
         ###first uav
-        obs[0][0] = self.uav1.position[0]
-        obs[1][0] = self.uav1.position[1]
-        obs[2][0] = self.uav1.position[2]
+        obs[0] = self.uav1.position[0]
+        obs[1] = self.uav1.position[1]
+        obs[2] = self.uav1.position[2]
 
-        obs[3][0] = self.uav1.roll
-        obs[4][0] = self.uav1.pitch
-        obs[5][0] = self.uav1.yaw
+        obs[3] = self.uav1.roll
+        obs[4] = self.uav1.pitch
+        obs[5] = self.uav1.yaw
 
-        obs[6][0] = self.uav1.speed
+        obs[6] = self.uav1.speed
 
         ###second uav
-        obs[7][0] = self.uav2.position[0]
-        obs[8][0] = self.uav2.position[1]
-        obs[9][0] = self.uav2.position[2]
+        obs[7] = self.uav2.position[0]
+        obs[8] = self.uav2.position[1]
+        obs[9] = self.uav2.position[2]
 
-        obs[10][0] = self.uav2.roll
-        obs[11][0] = self.uav2.pitch
-        obs[12][0] = self.uav2.yaw
+        obs[10] = self.uav2.roll
+        obs[11] = self.uav2.pitch
+        obs[12] = self.uav2.yaw
 
-        obs[13][0] = self.uav2.speed
+        obs[13] = self.uav2.speed
         return obs
 
     def _take_action(self, action):
@@ -134,18 +131,21 @@ class SimulationEnv(gym.Env):
         # Execute one time step within the environment
         self._take_action(action)
 
-        print("self.calculate_advantage():", self.calculate_advantage())
+        #print("self.calculate_advantage():", self.calculate_advantage())
 
         self.current_step += 1
-
-        reward = 0
-        done = False
+        thresh = 12
+        reward = self.calculate_advantage()
+        done = 1 if reward > thresh else 0
         obs = self._next_observation()
 
         return obs, reward, done, {}
 
     def reset(self):
         # Reset the state of the environment to an initial state
+        self.uav1 = UAV()
+        self.uav2 = UAV()
+        self.uav_list = [self.uav1, self.uav2]
         self.current_step = 0
 
         return self._next_observation()
