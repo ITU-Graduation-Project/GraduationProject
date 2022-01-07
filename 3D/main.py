@@ -1,29 +1,30 @@
 from env.SimulationEnv import SimulationEnv
 #from pynput import keyboard
 import  tqdm
-from dqn import DQNAgent
+from env.dqn import DQNAgent
 import numpy as np
 import random
 
 MAX_STEPS = 20000
 # Environment settings
 EPISODES = 20_000
-
+MAX_ITER_FOR_EPISODE = 5_000
 # Exploration settings
-epsilon = 0.8  # not a constant, going to be decayed
-EPSILON_DECAY = 0.99975
+epsilon = 0.9  # not a constant, going to be decayed
+EPSILON_DECAY = 0.95
 MIN_EPSILON = 0.001
 
 #  Stats settings
-AGGREGATE_STATS_EVERY = 50  # episodes
-SHOW_PREVIEW = False
+AGGREGATE_STATS_EVERY = 10  # episodes
+SHOW_EVERY = 100
+SHOW_PREVIEW = True
 
 ep_rewards = [-200]
 
 agent = DQNAgent()
 env = SimulationEnv()
 
-MIN_REWARD = -100
+MIN_REWARD = -500
 MODEL_NAME = '2x256'
 ACTION_SPACE_SIZE = 3
 
@@ -32,7 +33,7 @@ i = 0
 a = b = c = 0
 import time
 
-for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
+for episode in tqdm.tqdm(range(810, EPISODES + 1), ascii=True, unit='episodes'):
     # Update tensorboard step every episode
     agent.tensorboard.step = episode
 
@@ -46,7 +47,9 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
     # Reset flag and start iterating until episode ends
     done = False
     print("new episode")
-    while not done:
+    counter = 0
+    while not done and counter < MAX_ITER_FOR_EPISODE:
+        counter += 1
         # This part stays mostly the same, the change is to query a model for Q values
         if np.random.random() > epsilon:
             # Get action from Q table
@@ -55,20 +58,28 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
             decoded_action = np.base_repr(decoded_action, base=3)
             while(len(decoded_action) < 3):
                 decoded_action = "0" + decoded_action
-            action = [int(decoded_action[0]), int(decoded_action[1]), int(decoded_action[0])]
+            action = [int(decoded_action[0]), int(decoded_action[1]), int(decoded_action[2])]
         else:
             # Get random action
             action = [random.randint(0, 2), random.randint(0, 2), random.randint(0, 2)]
         action += [0, 0, 0]
 
         #print("action:", action)
-        new_state, reward, done, _ = env.step(action)
+        new_state, reward, done, _ = env.step(action, episode)
+        #TO DO: revert back to action
+        action = action[0] * (3**2) + action[1] * (3**1) + action[2] * (3**0)
+        #print(reward)
         # Transform new continuous state to new discrete state and count reward
         episode_reward += reward
 
-        if SHOW_PREVIEW and not episode % AGGREGATE_STATS_EVERY:
-            # env.render()
-            pass
+        if counter % 200 == 0:
+            print(reward)
+        if done:
+            print("done with reward:", reward)
+
+        if SHOW_PREVIEW and not episode % SHOW_EVERY:
+            env.render()
+            #pass
 
         # Every step we update replay memory and train main network
         agent.update_replay_memory((current_state, action, reward, new_state, done))
@@ -82,6 +93,7 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
         average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:]) / len(ep_rewards[-AGGREGATE_STATS_EVERY:])
         min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
         max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
+        print("min_reward:", min_reward)
         agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward,
                                        epsilon=epsilon)
 

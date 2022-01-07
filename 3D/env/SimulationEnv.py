@@ -127,14 +127,17 @@ class SimulationEnv(gym.Env):
         # print("der_x, der_y, der_z:", der_x, der_y, der_z)
         # print("uav.position:", uav.position)
 
-    def step(self, action):
+    def step(self, action, episode):
         # Execute one time step within the environment
         self._take_action(action)
 
         #print("self.calculate_advantage():", self.calculate_advantage())
 
         self.current_step += 1
-        thresh = 12
+
+        thresh = 4 + (episode / 100)
+        thresh = min(thresh, 10)
+
         reward = self.calculate_advantage()
         done = 1 if reward > thresh else 0
         obs = self._next_observation()

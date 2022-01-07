@@ -4,57 +4,61 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
 from keras.callbacks import TensorBoard
 from keras.optimizers import adam_v2 as Adam
+import os
 from collections import deque
 import numpy as np
 import time
-import  random
+import random
 
 ACTION_SPACE_SIZE = 3
 DISCOUNT = 0.99
-REPLAY_MEMORY_SIZE = 50_000  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 1_000  # Minimum number of steps in a memory to start training
+REPLAY_MEMORY_SIZE = 5_000  # How many last steps to keep for model training
+MIN_REPLAY_MEMORY_SIZE = 64  # Minimum number of steps in a memory to start training
 MINIBATCH_SIZE = 64  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = -200  # For model save
+MIN_REWARD = -500  # For model save
 MEMORY_FRACTION = 0.20
 
 # Own Tensorboard class
 class ModifiedTensorBoard(TensorBoard):
 
-    # Overriding init to set initial step and writer (we want one log file for all .fit() calls)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.step = 1
         self.writer = tf.summary.create_file_writer(self.log_dir)
+        self._log_write_dir = self.log_dir
 
-    # Overriding this method to stop creating default log writer
     def set_model(self, model):
-        pass
+        self.model = model
 
-    # Overrided, saves logs with our step number
-    # (otherwise every .fit() will start writing from 0th step)
+        self._train_dir = os.path.join(self._log_write_dir, 'train')
+        self._train_step = self.model._train_counter
+
+        self._val_dir = os.path.join(self._log_write_dir, 'validation')
+        self._val_step = self.model._test_counter
+
+        self._should_write_train_graph = False
+
     def on_epoch_end(self, epoch, logs=None):
         self.update_stats(**logs)
 
-    # Overrided
-    # We train for one batch only, no need to save anything at epoch end
     def on_batch_end(self, batch, logs=None):
         pass
 
-    # Overrided, so won't close writer
     def on_train_end(self, _):
         pass
 
-    # Custom method for saving own metrics
-    # Creates writer, writes custom metrics and closes writer
     def update_stats(self, **stats):
-        self._write_logs(stats, self.step)
+        with self.writer.as_default():
+            for key, value in stats.items():
+                tf.summary.scalar(key, value, step = self.step)
+                self.writer.flush()
 
 class DQNAgent:
     def __init__(self):
         # Main model
-        self.model = self.create_model()
+        self.model = self.create_model("/home/akcan/PycharmProjects/git_demo/3D/models/2x256__12523.77max_6075.41avg___10.40min__1641532473.model")
 
         # Target network
         self.target_model = self.create_model()
@@ -81,7 +85,7 @@ class DQNAgent:
         #print("q vals:", q_vals)
         return q_vals
 
-    def create_model(self):
+    def create_model(self, path=None):
         """
             Builds a deep neural net which predicts the Q values for all possible
             actions given a state. The input should have the shape of the state
@@ -91,11 +95,15 @@ class DQNAgent:
 
             :return: the Q network
             """
+        if path is not None:
+            q_net = tf.keras.models.load_model(path)
+            return q_net
         q_net = Sequential()
         q_net.add(Dense(64, input_dim=14, activation='relu', kernel_initializer='he_uniform'))
         q_net.add(Dense(32, activation='relu', kernel_initializer='he_uniform'))
         q_net.add(Dense(27, activation='linear', kernel_initializer='he_uniform'))
         q_net.compile(optimizer=tf.optimizers.Adam(learning_rate=0.001), loss='mse')
+
         return q_net
 
     # Trains main network every step during episode
@@ -138,7 +146,7 @@ class DQNAgent:
             y.append(current_qs)
 
         # Fit on all samples as one batch, log only on terminal state
-        self.model.fit(np.array(X) / 255, np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False,
+        self.model.fit(np.array(X) , np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False,
                        callbacks=[self.tensorboard] if terminal_state else None)
 
         # Update target network counter every episode
