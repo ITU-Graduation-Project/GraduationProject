@@ -17,6 +17,7 @@ class SimulationEnv(gym.Env):
         self.uav1 = UAV()
         self.uav2 = UAV()
         self.uav_list = [self.uav1, self.uav2]
+        self.current_reward = [0, 0]  # first is orientation reward, second is distance reward
         self.dt = 0.05  # each step time
         self.g = 9.81
         # Set actionSpace
@@ -32,7 +33,7 @@ class SimulationEnv(gym.Env):
             spaces.Discrete(3)))
 
         # Set Observation space
-        self.observation_space = spaces.Box(low=0, high=1, shape=(14, 1), dtype=np.float16)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(11, 1), dtype=np.float16)
 
     def get_na(self):
         der_pu = np.array([self.uav1.der_x, self.uav1.der_y, self.uav1.der_z])
@@ -45,48 +46,54 @@ class SimulationEnv(gym.Env):
 
         na = temp1 - temp2
 
-        #print("na:", na)
         return na
 
-    def get_nd(self, d_max=3, d_min=50, beta1=1, beta2=-1):
-        pu = np.array(self.uav1.position)
-        pt = np.array(self.uav2.position)
+    def get_nd(self, beta1=8, beta2=0.7, d_max=30, d_min=0):
 
-        temp1 = beta1 * (d_max - np.linalg.norm(pt - pu)) / (d_max - d_min)
-        #  temp2 = 1 - np.exp(-((np.linalg.norm(pt-pu) - d_min)**beta2))
+        distance = np.linalg.norm(np.array(self.uav_list[0].position) - np.array(self.uav_list[1].position))
 
-        nd = temp1  # * temp2
+        f_t = (d_max - abs(distance)) / (d_max - d_min)
+        s_t = 1 - np.exp(-(abs(distance) - d_min) ** beta2)
+        return_val = beta1 * f_t * s_t
+        return return_val
 
-        #print("nd:", nd)
-        return nd
+    """def ds(self):
+
+        distance = np.linalg.norm(np.array(self.uav_list[0].position) - np.array(self.uav_list[1].position))
+
+        if distance < 30:
+            return_value = distance / 2
+        elif 30 < distance < 60:
+            return_value = 30 - distance / 2
+        else:
+            return_value = - np.sqrt(distance - 30) * 4
+
+        return return_value"""
 
     def calculate_advantage(self, w1=0.5, w2=0.5):
+        self.current_reward[0], self.current_reward[1] = self.get_na(), self.get_nd()
         return w1 * self.get_na() + w2 * self.get_nd()
 
     def _next_observation(self):
-        obs = np.zeros(14)
+        obs = np.zeros(11)
 
-        ###first uav
-        obs[0] = self.uav1.position[0]
-        obs[1] = self.uav1.position[1]
-        obs[2] = self.uav1.position[2]
+        # first uav
+        obs[0] = 1 / (1 + np.exp(-(self.uav1.position[0] - self.uav2.position[0])/30))
+        obs[1] = 1 / (1 + np.exp(-(self.uav1.position[1] - self.uav2.position[1])/30))
+        obs[2] = 1 / (1 + np.exp(-(self.uav1.position[2] - self.uav2.position[2])/30))
 
-        obs[3] = self.uav1.roll
-        obs[4] = self.uav1.pitch
-        obs[5] = self.uav1.yaw
+        obs[3] = 1 / (1 + np.exp(-self.uav1.roll/45))
+        obs[4] = 1 / (1 + np.exp(-self.uav1.pitch/45))
+        obs[5] = 1 / (1 + np.exp(-self.uav1.yaw/90))
 
-        obs[6] = self.uav1.speed
+        obs[6] = 1 / (1 + np.exp(-self.uav1.speed/5))
 
-        ###second uav
-        obs[7] = self.uav2.position[0]
-        obs[8] = self.uav2.position[1]
-        obs[9] = self.uav2.position[2]
+        # second uav
+        obs[7] = 1 / (1 + np.exp(-self.uav2.roll/45))
+        obs[8] = 1 / (1 + np.exp(-self.uav2.pitch/45))
+        obs[9] = 1 / (1 + np.exp(-self.uav2.yaw/90))
 
-        obs[10] = self.uav2.roll
-        obs[11] = self.uav2.pitch
-        obs[12] = self.uav2.yaw
-
-        obs[13] = self.uav2.speed
+        obs[10] = 1 / (1 + np.exp(-self.uav2.speed/5))
         return obs
 
     def _take_action(self, action):
@@ -127,18 +134,23 @@ class SimulationEnv(gym.Env):
         # print("der_x, der_y, der_z:", der_x, der_y, der_z)
         # print("uav.position:", uav.position)
 
-    def step(self, action, episode):
+    def step(self, action, episode=None):
         # Execute one time step within the environment
         self._take_action(action)
 
-        #print("self.calculate_advantage():", self.calculate_advantage())
+        # print("self.calculate_advantage():", self.calculate_advantage())
 
         self.current_step += 1
 
-        thresh = 4 + (episode / 100)
-        thresh = min(thresh, 10)
+        if episode is None:
+            thresh = 25
+        else:
+            thresh = 2.5 + (episode / 1000)
+            thresh = min(thresh, 15)
 
         reward = self.calculate_advantage()
+        if reward > 8:
+            reward *= 1.25
         done = 1 if reward > thresh else 0
         obs = self._next_observation()
 
@@ -160,9 +172,9 @@ class SimulationEnv(gym.Env):
                 self.visualization = SimulationGraph(
                     kwargs.get('title', None))
             if self.current_step is not None:
-                self.visualization.render(self.uav1.position, self.uav2.position)
+                self.visualization.render(self.uav1.position, self.uav2.position, self.current_reward)
 
-    def close(self):
+    def close(self, episode):
         if self.visualization != None:
-            self.visualization.close()
+            self.visualization.close(episode)
             self.visualization = None

@@ -12,13 +12,12 @@ import random
 
 ACTION_SPACE_SIZE = 3
 DISCOUNT = 0.99
-REPLAY_MEMORY_SIZE = 5_000  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 64  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 64  # How many steps (samples) to use for training
+REPLAY_MEMORY_SIZE = 10_000  # How many last steps to keep for model training
+MIN_REPLAY_MEMORY_SIZE = 256  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 256  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
-MIN_REWARD = -500  # For model save
-MEMORY_FRACTION = 0.20
+
 
 # Own Tensorboard class
 class ModifiedTensorBoard(TensorBoard):
@@ -52,13 +51,14 @@ class ModifiedTensorBoard(TensorBoard):
     def update_stats(self, **stats):
         with self.writer.as_default():
             for key, value in stats.items():
-                tf.summary.scalar(key, value, step = self.step)
+                tf.summary.scalar(key, value, step=self.step)
                 self.writer.flush()
+
 
 class DQNAgent:
     def __init__(self):
         # Main model
-        self.model = self.create_model("/home/akcan/PycharmProjects/git_demo/3D/models/2x256__12523.77max_6075.41avg___10.40min__1641532473.model")
+        self.model = self.create_model("models/fix_max_iter_relative_episode1350__straight_____0.38max___-9.76avg__-22.69min__1642323072.model")
 
         # Target network
         self.target_model = self.create_model()
@@ -80,9 +80,9 @@ class DQNAgent:
 
     # Queries main network for Q values given current observation space (environment state)
     def get_qs(self, state):
-        #print("state.shape:", state.shape)
-        q_vals = self.model.predict(state.reshape(1, 14))[0]
-        #print("q vals:", q_vals)
+        # print("state.shape:", state.shape)
+        q_vals = self.model.predict(state.reshape(1, 11))[0]
+        # print("q vals:", q_vals)
         return q_vals
 
     def create_model(self, path=None):
@@ -99,7 +99,7 @@ class DQNAgent:
             q_net = tf.keras.models.load_model(path)
             return q_net
         q_net = Sequential()
-        q_net.add(Dense(64, input_dim=14, activation='relu', kernel_initializer='he_uniform'))
+        q_net.add(Dense(64, input_dim=11, activation='relu', kernel_initializer='he_uniform'))
         q_net.add(Dense(32, activation='relu', kernel_initializer='he_uniform'))
         q_net.add(Dense(27, activation='linear', kernel_initializer='he_uniform'))
         q_net.compile(optimizer=tf.optimizers.Adam(learning_rate=0.001), loss='mse')
@@ -146,7 +146,7 @@ class DQNAgent:
             y.append(current_qs)
 
         # Fit on all samples as one batch, log only on terminal state
-        self.model.fit(np.array(X) , np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False,
+        self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False,
                        callbacks=[self.tensorboard] if terminal_state else None)
 
         # Update target network counter every episode
