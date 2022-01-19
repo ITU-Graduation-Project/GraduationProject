@@ -7,18 +7,17 @@ import random
 import time
 
 # Environment settings
-EPISODES = 45_000
+EPISODES = 500_000
 MAX_ITER_FOR_EPISODE = 54
 # Exploration settings
 epsilon = 1  # not a constant, going to be decayed
-EPSILON_DECAY = 0.99994
-MIN_EPSILON = 0.1
+EPSILON_DECAY = 0.999994
+MIN_EPSILON = 0.2
 
 #  Stats settings
 AGGREGATE_STATS_EVERY = 20  # episodes
-SAVE_EVERY = 50
-SHOW_EVERY = 20
-SHOW_PREVIEW = True
+SAVE_EVERY = 300
+SHOW_EVERY = 100
 
 ep_rewards = [-200]
 
@@ -31,7 +30,7 @@ MODEL_NAME = 'straight'
 obs = env.reset()
 
 for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
-    MAX_ITER_FOR_EPISODE += 0.02
+    MAX_ITER_FOR_EPISODE += 0.004
     # Update tensorboard step every episode
     agent.tensorboard.step = episode
 
@@ -87,7 +86,7 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
         if done:
             print("done with reward:", reward)
 
-        if SHOW_PREVIEW and not episode % SHOW_EVERY:
+        if reward > 9 or (not episode % SHOW_EVERY):
             env.render()
             # print(reward)
             # pass
@@ -95,11 +94,11 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
         # Every step we update replay memory and train main network
 
         agent.update_replay_memory((current_state, action, reward, new_state, done))
-        agent.train(done)
 
         current_state = new_state
         step += 1
-    if SHOW_PREVIEW and not episode % SHOW_EVERY:
+    agent.train(done)
+    if reward > 9 or (not episode % SHOW_EVERY):
         env.close(episode)
     # Append episode reward to a list and log stats (every given number of episodes)
     ep_rewards.append(episode_reward)
@@ -121,4 +120,3 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
     if epsilon > MIN_EPSILON:
         epsilon *= EPSILON_DECAY
         epsilon = max(MIN_EPSILON, epsilon)
-

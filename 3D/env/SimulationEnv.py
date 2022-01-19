@@ -58,16 +58,13 @@ class SimulationEnv(gym.Env):
         return return_val
 
     """def ds(self):
-
         distance = np.linalg.norm(np.array(self.uav_list[0].position) - np.array(self.uav_list[1].position))
-
         if distance < 30:
             return_value = distance / 2
         elif 30 < distance < 60:
             return_value = 30 - distance / 2
         else:
             return_value = - np.sqrt(distance - 30) * 4
-
         return return_value"""
 
     def calculate_advantage(self, w1=0.5, w2=0.5):

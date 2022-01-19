@@ -12,9 +12,9 @@ import random
 
 ACTION_SPACE_SIZE = 3
 DISCOUNT = 0.99
-REPLAY_MEMORY_SIZE = 10_000  # How many last steps to keep for model training
-MIN_REPLAY_MEMORY_SIZE = 256  # Minimum number of steps in a memory to start training
-MINIBATCH_SIZE = 256  # How many steps (samples) to use for training
+REPLAY_MEMORY_SIZE = 100_000  # How many last steps to keep for model training
+MIN_REPLAY_MEMORY_SIZE = 32768  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 32768  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
 MODEL_NAME = '2x256'
 
@@ -58,7 +58,7 @@ class ModifiedTensorBoard(TensorBoard):
 class DQNAgent:
     def __init__(self):
         # Main model
-        self.model = self.create_model("models/fix_max_iter_relative_episode1350__straight_____0.38max___-9.76avg__-22.69min__1642323072.model")
+        self.model = self.create_model("models_4_days/fix_max_iter_relative_episode13550__straight_____3.28max___-4.33avg__-19.33min__1642541236.model")
 
         # Target network
         self.target_model = self.create_model()
@@ -92,7 +92,6 @@ class DQNAgent:
             (which is 4 in CartPole), and the output should have the same shape as
             the action space (which is 2 in CartPole) since we want 1 Q value per
             possible action.
-
             :return: the Q network
             """
         if path is not None:

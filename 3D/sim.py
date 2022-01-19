@@ -1,9 +1,11 @@
-import numpy as np
+import glob
+import os
+import re
+
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
-import matplotlib.animation as animation
-import glob, os
-import re
+import numpy as np
 
 numbers = re.compile(r'(\d+)')
 
