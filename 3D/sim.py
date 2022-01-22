@@ -49,6 +49,8 @@ sims = sorted(os.listdir("sims"), key=numericalSort, reverse=True)
 print(sims)
 
 for i in sims:
+    if "sim" in i:
+        continue
     nparr = np.load("sims/" + "locations_" + i.split("_")[1].split(".")[0] + ".npy")
     np_rewards = np.load("sims/" + "rewards_" + i.split("_")[1].split(".")[0] + ".npy")
     print(max(np.sum(np_rewards, axis=1) / 2))
@@ -75,7 +77,7 @@ for i in sims:
     print(len(data[0][0]))
     lines = [ax.plot(dat[0, 0:1], dat[1, 0:1], dat[2, 0:1])[0] for dat in data]
     line_ani = animation.FuncAnimation(fig, update_lines, len(data[0][0]), fargs=(data, lines),
-                                       interval=30, blit=True)
+                                       interval=100, blit=True)
 
     plt.show()
     plt.close()

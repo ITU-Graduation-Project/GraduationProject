@@ -8,18 +8,21 @@ import time
 
 # Environment settings
 EPISODES = 500_000
-MAX_ITER_FOR_EPISODE = 54
+MAX_ITER_FOR_EPISODE = 30
 # Exploration settings
 epsilon = 1  # not a constant, going to be decayed
-EPSILON_DECAY = 0.999994
+EPSILON_DECAY = 0.99982
 MIN_EPSILON = 0.2
 
 #  Stats settings
 AGGREGATE_STATS_EVERY = 20  # episodes
 SAVE_EVERY = 300
-SHOW_EVERY = 100
+SHOW_EVERY = 10
 
 ep_rewards = [-200]
+
+action_counter = [0] * 27
+
 
 agent = DQNAgent()
 # agent2 = DQNAgent()
@@ -30,7 +33,7 @@ MODEL_NAME = 'straight'
 obs = env.reset()
 
 for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
-    MAX_ITER_FOR_EPISODE += 0.004
+    # MAX_ITER_FOR_EPISODE += 0.01
     # Update tensorboard step every episode
     agent.tensorboard.step = episode
 
@@ -51,9 +54,18 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
         if np.random.random() > epsilon:
             # Get action from Q table
             # print("current_state:", current_state)
-            decoded_action = np.argmax(agent.get_qs(current_state))
+            q_vals = agent.get_qs(current_state)
+            print("currebt state:", current_state)
+            print("prew reward:", reward)
+            print("q_vals:", q_vals)
+            decoded_action = np.argmax(q_vals)
+            action_counter[decoded_action] += 1
+
+            print("action counter:", "*"*20, " : ", action_counter)
+            print("decoded_action:", decoded_action)
 
             decoded_action = np.base_repr(decoded_action, base=3)
+
             while len(decoded_action) < 3:
                 decoded_action = "0" + decoded_action
             action = [int(decoded_action[0]), int(decoded_action[1]), int(decoded_action[2])]
@@ -75,18 +87,18 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
         # print(reward)
         # print("new_state:", new_state)
 
-        # revert back to action
+        # revert the action
         action = action[0] * (3 ** 2) + action[1] * (3 ** 1) + action[2] * (3 ** 0)
         # print(reward)
         # Transform new continuous state to new discrete state and count reward
         episode_reward += reward
 
-        if counter % 25 == 0:
+        if counter % 499 == 0:
             print(reward)
         if done:
             print("done with reward:", reward)
 
-        if reward > 9 or (not episode % SHOW_EVERY):
+        if not episode % SHOW_EVERY:
             env.render()
             # print(reward)
             # pass
@@ -97,8 +109,9 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
 
         current_state = new_state
         step += 1
-    agent.train(done)
-    if reward > 9 or (not episode % SHOW_EVERY):
+        agent.train(done)
+
+    if not episode % SHOW_EVERY:
         env.close(episode)
     # Append episode reward to a list and log stats (every given number of episodes)
     ep_rewards.append(episode_reward)
