@@ -77,7 +77,7 @@ for i in sims:
     print(len(data[0][0]))
     lines = [ax.plot(dat[0, 0:1], dat[1, 0:1], dat[2, 0:1])[0] for dat in data]
     line_ani = animation.FuncAnimation(fig, update_lines, len(data[0][0]), fargs=(data, lines),
-                                       interval=100, blit=True)
+                                       interval=50, blit=True)
 
     plt.show()
     plt.close()

@@ -17,20 +17,17 @@ class SimulationEnv(gym.Env):
         self.uav1 = UAV()
         self.uav2 = UAV()
         self.uav_list = [self.uav1, self.uav2]
+        self.num_states = 11
+        self.num_actions = 27
         self.current_reward = [0, 0]  # first is orientation reward, second is distance reward
-        self.dt = 0.5  # each step time
+        self.dt = 0.1  # each step time
         self.g = 9.81
+        self.episode = 0
         # Set actionSpace
         # first variable is roll change: 0 -> left; 1 -> steady; 2 -> right
         # second variable is pitch change: 0 -> down; 1 -> steady; 2 -> up
         # first variable is speed change: 0 -> decelerate; 1 -> steady; 2 -> accelerate
-        self.action_space = spaces.Tuple((
-            spaces.Discrete(3),
-            spaces.Discrete(3),
-            spaces.Discrete(3),
-            spaces.Discrete(3),
-            spaces.Discrete(3),
-            spaces.Discrete(3)))
+        self.action_space = spaces.Box(low=0, high=1, shape=(3, 1), dtype=np.float16)
 
         # Set Observation space
         self.observation_space = spaces.Box(low=0, high=1, shape=(11, 1), dtype=np.float16)
@@ -79,25 +76,25 @@ class SimulationEnv(gym.Env):
         obs[1] = 1 / (1 + np.exp(-(self.uav1.position[1] - self.uav2.position[1])/30))
         obs[2] = 1 / (1 + np.exp(-(self.uav1.position[2] - self.uav2.position[2])/30))
 
-        obs[3] = 1 / (1 + np.exp(-self.uav1.roll/45))
-        obs[4] = 1 / (1 + np.exp(-self.uav1.pitch/45))
-        obs[5] = 1 / (1 + np.exp(-self.uav1.yaw/90))
+        obs[3] = (self.uav1.roll + 23) / 46
+        obs[4] = (self.uav1.pitch + 23) / 46
+        obs[5] = self.uav1.yaw / 360
 
-        obs[6] = 1 / (1 + np.exp(-self.uav1.speed/5))
+        obs[6] = (self.uav1.speed - 4) / 16
 
         # second uav
-        obs[7] = 1 / (1 + np.exp(-self.uav2.roll/45))
-        obs[8] = 1 / (1 + np.exp(-self.uav2.pitch/45))
-        obs[9] = 1 / (1 + np.exp(-self.uav2.yaw/90))
+        obs[7] = (self.uav2.roll - 23) / 46
+        obs[8] = (self.uav2.pitch - 23) / 46
+        obs[9] = self.uav2.yaw / 360
 
-        obs[10] = 1 / (1 + np.exp(-self.uav2.speed/5))
+        obs[10] = (self.uav2.speed - 4) / 16
         return obs
 
     def _take_action(self, action):
         for i, uav in enumerate(self.uav_list):
-            uav.roll = uav.roll + (action[i * 3 + 0] - 1) * self.dt * uav.der_roll
-            uav.pitch = uav.pitch + (action[i * 3 + 1] - 1) * self.dt * uav.der_pitch
-            uav.speed = uav.speed + (action[i * 3 + 2] - 1) * self.dt * uav.der_speed
+            uav.roll = uav.roll + action[i * 3 + 0] * self.dt * uav.der_roll
+            uav.pitch = uav.pitch + action[i * 3 + 1] * self.dt * uav.der_pitch
+            uav.speed = uav.speed + action[i * 3 + 2] * self.dt * uav.der_speed
 
             # check for boundaries
             if uav.roll > uav.max_roll:
@@ -131,8 +128,27 @@ class SimulationEnv(gym.Env):
         # print("der_x, der_y, der_z:", der_x, der_y, der_z)
         # print("uav.position:", uav.position)
 
-    def step(self, action, episode=None):
+    def convert_action_to_array(self, action):
+        print(action)
+        # decoded_action = np.base_repr(action, base=3)
+
+        while len(decoded_action) < 3:
+            decoded_action = "0" + decoded_action
+
+        res = [int(decoded_action[0]), int(decoded_action[1]), int(decoded_action[2])]
+        res += [0, 0, 0]
+        return res
+
+    def step(self, action):
         # Execute one time step within the environment
+        # print("action in step:", action)
+        # action_ = self.convert_action_to_array(action)
+
+        # action = np.concatenate((action, np.zeros(3)), axis=None)
+
+        #print("action:", action)
+        # print("action:", action)
+
         self._take_action(action)
 
         # print("self.calculate_advantage():", self.calculate_advantage())
@@ -166,7 +182,8 @@ class SimulationEnv(gym.Env):
             if self.current_step is not None:
                 self.visualization.render(self.uav1.position, self.uav2.position, self.current_reward)
 
-    def close(self, episode):
+    def close(self):
         if self.visualization != None:
-            self.visualization.close(episode)
+            self.episode += 1
+            self.visualization.close(self.episode)
             self.visualization = None

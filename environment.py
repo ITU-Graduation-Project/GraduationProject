@@ -29,7 +29,6 @@ class AnimationHistory():
 		value_history = self.value_history
 		value_history = np.array(value_history,dtype=object)
 
-		print(position_history.shape)
 		return position_history, value_history
 	def savHist():
 		"""

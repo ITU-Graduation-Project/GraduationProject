@@ -21,8 +21,7 @@ SHOW_EVERY = 10
 
 ep_rewards = [-200]
 
-action_counter = [0] * 27
-
+action_counter = [0] * 9
 
 agent = DQNAgent()
 # agent2 = DQNAgent()
@@ -33,7 +32,6 @@ MODEL_NAME = 'straight'
 obs = env.reset()
 
 for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
-    # MAX_ITER_FOR_EPISODE += 0.01
     # Update tensorboard step every episode
     agent.tensorboard.step = episode
 
@@ -55,47 +53,37 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
             # Get action from Q table
             # print("current_state:", current_state)
             q_vals = agent.get_qs(current_state)
-            print("currebt state:", current_state)
-            print("prew reward:", reward)
-            print("q_vals:", q_vals)
+            if counter % 500 == 0:
+                print("q vals:", q_vals)
             decoded_action = np.argmax(q_vals)
+            # print("decoded_action:", decoded_action)
+
             action_counter[decoded_action] += 1
-
-            print("action counter:", "*"*20, " : ", action_counter)
-            print("decoded_action:", decoded_action)
-
             decoded_action = np.base_repr(decoded_action, base=3)
-
-            while len(decoded_action) < 3:
+            while len(decoded_action) < 2:
                 decoded_action = "0" + decoded_action
-            action = [int(decoded_action[0]), int(decoded_action[1]), int(decoded_action[2])]
+            # print("decoded_action:", decoded_action)
+            action = [int(decoded_action[0]), int(decoded_action[1]), 1]
         else:
             # Get random action
-            action = [random.randint(0, 2), random.randint(0, 2), random.randint(0, 2)]
+            action = [random.randint(0, 2), random.randint(0, 2), 1]
 
-        # rival_decoded = revert_obs(current_state.copy())
-        # rival_decoded = np.argmax(agent2.get_qs(rival_decoded))
-        # rival_decoded = np.base_repr(rival_decoded, base=3)
-
-        # while len(rival_decoded) < 3:
-        #    rival_decoded = "0" + rival_decoded
-
-        # action += [int(rival_decoded[0]), int(rival_decoded[1]), int(rival_decoded[2])]
         action += [1, 1, 1]
-        # print("action:", action)
+
         new_state, reward, done, _ = env.step(action, episode)
-        # print(reward)
-        # print("new_state:", new_state)
 
         # revert the action
-        action = action[0] * (3 ** 2) + action[1] * (3 ** 1) + action[2] * (3 ** 0)
-        # print(reward)
+        action = action[0] * (3 ** 1) + action[1] * (3 ** 0)# + action[2] * (3 ** 0)
+
         # Transform new continuous state to new discrete state and count reward
         episode_reward += reward
 
         if counter % 499 == 0:
             print(reward)
+            print("action numbers:", [0, 1, 2, 3, 4, 5, 6, 7, 8])
+            print("action counter:", action_counter)
         if done:
+            print("action numbers:", [0, 1, 2, 3, 4, 5, 6, 7, 8])
             print("done with reward:", reward)
 
         if not episode % SHOW_EVERY:
@@ -104,13 +92,11 @@ for episode in tqdm.tqdm(range(1, EPISODES + 1), ascii=True, unit='episodes'):
             # pass
 
         # Every step we update replay memory and train main network
-
         agent.update_replay_memory((current_state, action, reward, new_state, done))
-
         current_state = new_state
         step += 1
-        agent.train(done)
 
+        agent.train(done)
     if not episode % SHOW_EVERY:
         env.close(episode)
     # Append episode reward to a list and log stats (every given number of episodes)

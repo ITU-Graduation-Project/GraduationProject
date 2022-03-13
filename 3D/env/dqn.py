@@ -102,14 +102,15 @@ class DQNAgent:
         q_net.add(Dense(512, input_dim=11, activation='tanh', kernel_initializer=initializer, bias_initializer='zeros'))
         q_net.add(Dense(1024, activation='tanh', kernel_initializer=initializer, bias_initializer='zeros'))
         q_net.add(Dense(512, activation='tanh', kernel_initializer=initializer, bias_initializer='zeros'))
-        q_net.add(Dense(128, activation='tanh', kernel_initializer='zeros'))
-        q_net.add(Dense(27, kernel_initializer='he_uniform'))
+        # q_net.add(Dense(128, activation='tanh', kernel_initializer='zeros'))
+        q_net.add(Dense(9, kernel_initializer='he_uniform'))
         q_net.compile(optimizer=tf.optimizers.Adam(learning_rate=0.001), loss='mse')
 
         return q_net
 
     # Trains main network every step during episode
     def train(self, terminal_state):
+        # print("memory length:", len(self.replay_memory) )
         # Start training only if certain number of samples is already saved
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
             print("not training")

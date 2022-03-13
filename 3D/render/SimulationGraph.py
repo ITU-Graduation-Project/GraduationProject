@@ -18,6 +18,8 @@ class SimulationGraph:
         nparr = np.array(self.locations).T
         np_rewards = np.array(self.rewards)
 
+        print("self.episode:", episode)
+
         f1 = "sims/" + "locations_" + str(episode) + ".npy"
         f2 = "sims/" + "rewards_" + str(episode) + ".npy"
 
