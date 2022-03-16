@@ -11,13 +11,14 @@ Tensorboard
     timesteps tutulsun
 
 Deneyler
-    Ağ yaw bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre.
+    Ağ yaw bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre. (Bu bilgiler çıkartıldığında t-1 anındaki observationlar da ağa input olarak verilecek)
     Ağ roll bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre.
     Ağ pitch bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre.
     ve türevleri (yaw-roll), (yaw-picth) vs.
     X Y Z ye gaussian noise eklencek.
-    (yaw-XYZ),(roll-XYZ),(pitch-XYZ) test edilecek.
+    (yaw-XYZ),(roll-XYZ), (pitch-XYZ) test edilecek.
     Eğer bu sonuçlar iyi gelirse türevleri yapmakla beraber X Y Z noise ekleyerek yapıcaz.
+
 
 PPO Araştırılcak
 

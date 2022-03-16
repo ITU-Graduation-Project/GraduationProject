@@ -69,6 +69,14 @@ class PPO:
             'actor_losses': [],  # losses of actor network in current iteration
         }
 
+    def arrangeObservation(obs, x):
+        """
+            x parametresine göre yaw pitch roll position çikarilacak
+            y parametresine göre noise eklenip çikarilacak
+            eğer x e göre shadowlama yapildiysa rivalin eski posisyonu eklencek
+        """
+        pass
+
     def learn(self, total_timesteps):
         """
             Train the actor and critic networks. Here is where the main PPO algorithm resides.
