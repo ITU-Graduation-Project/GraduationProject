@@ -2,15 +2,15 @@
 GraduationProject
 
 # Eklencekler
-Kod düzenlenmesi
+* Kod düzenlenmesi
     Branchlere ayrılcak Dynamic Learning, DQN ve PPO şeklinde
 
-Tensorboard
-    Tensorboard ile log tutulacak grafiksel reward,loss ve average min,max rewardlar tutulacak
+* Tensorboard
+    Tensorboard ile log tutulacak grafiksel reward, loss ve average min,max rewardlar tutulacak
     bir episode süresinin ne kadar sürede eğitildiği grafiksel tutulmalı
     timesteps tutulsun
 
-Deneyler
+* Deneyler
     Ağ yaw bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre. (Bu bilgiler çıkartıldığında t-1 anındaki observationlar da ağa input olarak verilecek)
     Ağ roll bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre.
     Ağ pitch bilgisi olmadan eğitilcek en az 20k adım veya grafiğe göre.
@@ -20,6 +20,6 @@ Deneyler
     Eğer bu sonuçlar iyi gelirse türevleri yapmakla beraber X Y Z noise ekleyerek yapıcaz.
 
 
-PPO Araştırılcak
+* PPO Araştırılcak
 
-Paper Yazılacak
+* Paper Yazılacak

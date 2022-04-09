@@ -15,6 +15,8 @@ from torch.optim import Adam
 from torch.distributions import MultivariateNormal
 from network import FeedForwardNN
 
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
 
 class PPO:
     """
@@ -67,6 +69,8 @@ class PPO:
             'batch_lens': [],  # episodic lengths in batch
             'batch_rews': [],  # episodic returns in batch
             'actor_losses': [],  # losses of actor network in current iteration
+            'avg_batch_losses':[],
+            'avg_batch_rewards':[],
         }
 
     def arrangeObservation(obs, x):
@@ -239,7 +243,6 @@ class PPO:
                 both_action = np.concatenate((action, rival_action), axis=None)
 
                 obs, rew, done, _ = self.env.step(both_action)
-
                 # Track recent reward, action, and action log probability
                 ep_rews.append(rew)
                 batch_acts.append(action)
@@ -410,9 +413,26 @@ class PPO:
         avg_actor_loss = np.mean([losses.float().mean() for losses in self.logger['actor_losses']])
 
         # Round decimal places for more aesthetic logging messages
-        avg_ep_lens = str(round(avg_ep_lens, 2))
-        avg_ep_rews = str(round(avg_ep_rews, 2))
-        avg_actor_loss = str(round(avg_actor_loss, 5))
+        avg_ep_lens = round(avg_ep_lens, 2)
+        avg_ep_rews = round(avg_ep_rews, 2)
+        avg_actor_loss = round(avg_actor_loss, 5)
+
+
+        self.logger['avg_batch_losses'].append(avg_actor_loss)
+        self.logger['avg_batch_rewards'].append(avg_ep_rews)
+        
+        lossArray = self.logger['avg_batch_losses'][-10:]
+        avg_10_loss = sum(lossArray) / len(lossArray)
+        avg_10_loss = round(avg_10_loss,5)
+        min_10_loss = min(lossArray)
+        max_10_loss = max(lossArray)
+
+        rewardArray = self.logger['avg_batch_rewards'][-10:]
+        avg_10_reward = sum(rewardArray) / len(rewardArray)
+        avg_10_reward = round(avg_10_reward,2)
+        min_10_reward = min(rewardArray)
+        max_10_reward = max(rewardArray)
+
 
         # Print logging statements
         print(flush=True)
@@ -424,6 +444,37 @@ class PPO:
         print(f"Iteration took: {delta_t} secs", flush=True)
         print(f"------------------------------------------------------", flush=True)
         print(flush=True)
+        print("[Avg,Max,Min Loss]",avg_10_loss,max_10_loss,min_10_loss)
+        print("[Avg,Max,Min Reward]",avg_10_reward,max_10_reward,min_10_reward)
+        print("List Array Length Loss, Reward",len(lossArray),len(rewardArray))
+        print(f"------------------------------------------------------", flush=True)
+        print(flush=True)
+        
+
+
+        writer.add_scalar("AVG_Loss/Episode",float(avg_10_loss),i_so_far)
+        writer.add_scalar("AVG_Reward/Episode",float(avg_10_reward),i_so_far)
+
+        writer.add_scalar("MIN_Loss/Episode",float(min_10_loss),i_so_far)
+        writer.add_scalar("MIN_Reward/Episode",float(min_10_reward),i_so_far)
+
+        writer.add_scalar("MAX_Loss/Episode",float(max_10_loss),i_so_far)
+        writer.add_scalar("MAX_Reward/Episode",float(max_10_reward),i_so_far)
+
+        #log loss and rewards for each 10 episode separetly
+        if(i_so_far%10==0):
+            writer.add_scalar("AVG_Loss_per10/Episode",float(avg_10_loss),i_so_far/10)
+            writer.add_scalar("AVG_Reward_per10/Episode",float(avg_10_reward),i_so_far/10)
+
+            writer.add_scalar("MIN_Loss_per10/Episode",float(min_10_loss),i_so_far/10)
+            writer.add_scalar("MIN_Reward_per10/Episode",float(min_10_reward),i_so_far/10)
+
+            writer.add_scalar("MAX_Loss_per10/Episode",float(max_10_loss),i_so_far/10)
+            writer.add_scalar("MAX_Reward_per10/Episode",float(max_10_reward),i_so_far/10)
+
+
+        writer.add_scalar("delta_t/Episode",float(delta_t),i_so_far)
+
 
         # Reset batch-specific logging data
         self.logger['batch_lens'] = []
