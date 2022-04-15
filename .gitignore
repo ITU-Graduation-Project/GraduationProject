@@ -1,0 +1,5 @@
+.vscode
+*.npy
+*.pyc
+*.pth
+events.*

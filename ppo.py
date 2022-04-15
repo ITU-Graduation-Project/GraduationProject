@@ -67,10 +67,14 @@ class PPO:
             't_so_far': 0,  # timesteps so far
             'i_so_far': 0,  # iterations so far
             'batch_lens': [],  # episodic lengths in batch
-            'batch_rews': [],  # episodic returns in batch
+            'batch_rews': [],  # episodic rewards in batch
+            'batch_rews_rival': [],  # episodic rival rewards in batch
             'actor_losses': [],  # losses of actor network in current iteration
             'avg_batch_losses':[],
             'avg_batch_rewards':[],
+            'avg_batch_rewards_rival':[],
+            'win':0,
+            'lose':0
         }
 
     def arrangeObservation(obs, x):
@@ -203,12 +207,14 @@ class PPO:
         batch_acts = []
         batch_log_probs = []
         batch_rews = []
+        batch_rews_rival = []
         batch_rtgs = []
         batch_lens = []
 
         # Episodic data. Keeps track of rewards per episode, will get cleared
         # upon each new episode
         ep_rews = []
+        ep_rews_rival = []
 
         t = 0  # Keeps track of how many timesteps we've run so far this batch
         episode_number = 0
@@ -216,7 +222,7 @@ class PPO:
         while t < self.timesteps_per_batch:
             episode_number += 1
             ep_rews = []  # rewards collected per episode
-
+            ep_rews_rival = []
             # Reset the environment. sNote that obs is short for observation.
             obs = self.env.reset()
             done = False
@@ -242,14 +248,20 @@ class PPO:
 
                 both_action = np.concatenate((action, rival_action), axis=None)
 
-                obs, rew, done, _ = self.env.step(both_action)
+                obs, rew, done, rew_rival = self.env.step(both_action)
+                
                 # Track recent reward, action, and action log probability
                 ep_rews.append(rew)
+                ep_rews_rival.append(rew_rival)
                 batch_acts.append(action)
                 batch_log_probs.append(log_prob)
 
                 # If the environment tells us the episode is terminated, break
-                if done:
+                if done==1:
+                    self.logger['win']+=1
+                    break
+                elif done==-1:
+                    self.logger['lose']+=1
                     break
 
             self.env.close()
@@ -257,6 +269,7 @@ class PPO:
             # Track episodic lengths and rewards
             batch_lens.append(ep_t + 1)
             batch_rews.append(ep_rews)
+            batch_rews_rival.append(ep_rews_rival)
 
         # Reshape data as tensors in the shape specified in function description, before returning
         batch_obs = torch.tensor(batch_obs, dtype=torch.float)
@@ -266,6 +279,7 @@ class PPO:
 
         # Log the episodic returns and episodic lengths in this batch.
         self.logger['batch_rews'] = batch_rews
+        self.logger['batch_rews_rival'] = batch_rews_rival
         self.logger['batch_lens'] = batch_lens
 
         return batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lens
@@ -410,16 +424,19 @@ class PPO:
         i_so_far = self.logger['i_so_far']
         avg_ep_lens = np.mean(self.logger['batch_lens'])
         avg_ep_rews = np.mean([np.sum(ep_rews) for ep_rews in self.logger['batch_rews']])
+        avg_ep_rews_rival = np.mean([np.sum(ep_rews) for ep_rews in self.logger['batch_rews_rival']])
         avg_actor_loss = np.mean([losses.float().mean() for losses in self.logger['actor_losses']])
 
         # Round decimal places for more aesthetic logging messages
         avg_ep_lens = round(avg_ep_lens, 2)
         avg_ep_rews = round(avg_ep_rews, 2)
+        avg_ep_rews_rival = round(avg_ep_rews_rival, 2)
         avg_actor_loss = round(avg_actor_loss, 5)
 
 
         self.logger['avg_batch_losses'].append(avg_actor_loss)
         self.logger['avg_batch_rewards'].append(avg_ep_rews)
+        self.logger['avg_batch_rewards_rival'].append(avg_ep_rews_rival)
         
         lossArray = self.logger['avg_batch_losses'][-10:]
         avg_10_loss = sum(lossArray) / len(lossArray)
@@ -438,7 +455,8 @@ class PPO:
         print(flush=True)
         print(f"-------------------- Iteration #{i_so_far} --------------------", flush=True)
         print(f"Average Episodic Length: {avg_ep_lens}", flush=True)
-        print(f"Average Episodic Return: {avg_ep_rews}", flush=True)
+        print(f"Average Episodic Reward: {avg_ep_rews}", flush=True)
+        print(f"Average Episodic Rival Reward: {avg_ep_rews_rival}", flush=True)
         print(f"Average Loss: {avg_actor_loss}", flush=True)
         print(f"Timesteps So Far: {t_so_far}", flush=True)
         print(f"Iteration took: {delta_t} secs", flush=True)
@@ -474,9 +492,11 @@ class PPO:
 
 
         writer.add_scalar("delta_t/Episode",float(delta_t),i_so_far)
-
+        print("#"*200)
+        print(self.logger['win'], self.logger['lose'])
 
         # Reset batch-specific logging data
         self.logger['batch_lens'] = []
         self.logger['batch_rews'] = []
+        self.logger['batch_rews_rival'] = []
         self.logger['actor_losses'] = []

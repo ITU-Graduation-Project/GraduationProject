@@ -1,10 +1,11 @@
 import gym
 from gym import spaces
 import numpy as np
-from render.SimulationGraph import SimulationGraph
-from env.uav import UAV
 
-LOOKBACK_WINDOW_SIZE = 40
+from env.SimulationGraph import SimulationGraph
+from uav import UAV
+
+
 
 
 class SimulationEnv(gym.Env):
@@ -32,11 +33,11 @@ class SimulationEnv(gym.Env):
         # Set Observation space
         self.observation_space = spaces.Box(low=0, high=1, shape=(11, 1), dtype=np.float16)
 
-    def get_na(self):
-        der_pu = np.array([self.uav1.der_x, self.uav1.der_y, self.uav1.der_z])
-        der_pt = np.array([self.uav2.der_x, self.uav2.der_y, self.uav2.der_z])
-        pu = np.array(self.uav1.position)
-        pt = np.array(self.uav2.position)
+    def get_na(self,uav1, uav2):
+        der_pu = np.array([uav1.der_x, uav1.der_y, uav1.der_z])
+        der_pt = np.array([uav2.der_x, uav2.der_y, uav2.der_z])
+        pu = np.array(uav1.position)
+        pt = np.array(uav2.position)
 
         temp1 = (der_pu @ (pt - pu)) / np.linalg.norm(pt - pu)
         temp2 = (der_pt @ (pu - pt)) / np.linalg.norm(pu - pt)
@@ -45,7 +46,7 @@ class SimulationEnv(gym.Env):
 
         return na
 
-    def get_nd(self, beta1=8, beta2=0.7, d_max=30, d_min=0):
+    def get_nd(self,beta1=8, beta2=0.7, d_max=30, d_min=0):
 
         distance = np.linalg.norm(np.array(self.uav_list[0].position) - np.array(self.uav_list[1].position))
 
@@ -65,8 +66,10 @@ class SimulationEnv(gym.Env):
         return return_value"""
 
     def calculate_advantage(self, w1=0.5, w2=0.5):
-        self.current_reward[0], self.current_reward[1] = self.get_na(), self.get_nd()
-        return w1 * self.get_na() + w2 * self.get_nd()
+        self.current_reward[0], self.current_reward[1] = self.get_na(self.uav1,self.uav2), self.get_nd()
+        r1 = w1 * self.get_na(self.uav1, self.uav2) + w2 * self.get_nd()
+        r2 = w1 * self.get_na(self.uav2, self.uav1) + w2 * self.get_nd()
+        return r1, r2
 
     def _next_observation(self):
         obs = np.zeros(11)
@@ -157,12 +160,13 @@ class SimulationEnv(gym.Env):
 
         thresh = 12
 
-        reward = self.calculate_advantage()
+        reward, reward_rival = self.calculate_advantage()
 
         done = 1 if reward > thresh else 0
+        done = -1 if reward_rival > thresh else done
         obs = self._next_observation()
 
-        return obs, reward, done, {}
+        return obs, reward, done, reward_rival
 
     def reset(self):
         # Reset the state of the environment to an initial state

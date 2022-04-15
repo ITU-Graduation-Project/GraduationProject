@@ -9,9 +9,11 @@ import torch
 from env.SimulationEnv import SimulationEnv
 
 from arguments import get_args
-from ppo import PPO
 from network import FeedForwardNN
 from eval_policy import eval_policy
+from ppo import PPO
+
+from uav import UAV
 
 def train(env, hyperparameters, actor_model, critic_model):
 	"""
@@ -40,6 +42,7 @@ def train(env, hyperparameters, actor_model, critic_model):
 		sys.exit(0)
 	else:
 		print(f"Training from scratch.", flush=True)
+
 
 	# Train the PPO model with a specified total timesteps
 	# NOTE: You can change the total timesteps here, I put a big number just because
