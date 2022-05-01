@@ -3,17 +3,17 @@
 	https://medium.com/@eyyu/coding-ppo-from-scratch-with-pytorch-part-1-4-613dfc1b14c8
 """
 
-import gym
 import sys
 import torch
 from env.SimulationEnv import SimulationEnv
 
-from arguments import get_args
-from ppo import PPO
-from network import FeedForwardNN
-from eval_policy import eval_policy
+from PPO.arguments import get_args
+from PPO.ppo import PPO
+from PPO.network import FeedForwardNN
+from PPO.eval_policy import eval_policy
 
-def train(env, hyperparameters, actor_model, critic_model):
+
+def train(env, hyperparameters, actor_model, critic_model, rival_actor):
 	"""
 		Trains the model.
 		Parameters:
@@ -27,7 +27,7 @@ def train(env, hyperparameters, actor_model, critic_model):
 	print(f"Training", flush=True)
 
 	# Create a model for PPO.
-	model = PPO(policy_class=FeedForwardNN, env=env, **hyperparameters)
+	model = PPO(policy_class=FeedForwardNN, env=env, rival_actor=rival_actor, ** hyperparameters)
 
 	# Tries to load in an existing actor/critic model to continue training on
 	if actor_model != '' and critic_model != '':
@@ -35,8 +35,9 @@ def train(env, hyperparameters, actor_model, critic_model):
 		model.actor.load_state_dict(torch.load(actor_model))
 		model.critic.load_state_dict(torch.load(critic_model))
 		print(f"Successfully loaded.", flush=True)
-	elif actor_model != '' or critic_model != '': # Don't train from scratch if user accidentally forgets actor/critic model
-		print(f"Error: Either specify both actor/critic models or none at all. We don't want to accidentally override anything!")
+	elif actor_model != '' or critic_model != '':  # Don't train scratch if user accidentally forgets actor/critic model
+		print("Error: Either specify both actor/critic models or none at all.")
+		print("We don't want to accidentally override anything!")
 		sys.exit(0)
 	else:
 		print(f"Training from scratch.", flush=True)
@@ -44,7 +45,8 @@ def train(env, hyperparameters, actor_model, critic_model):
 	# Train the PPO model with a specified total timesteps
 	# NOTE: You can change the total timesteps here, I put a big number just because
 	# you can kill the process whenever you feel like PPO is converging
-	model.learn(total_timesteps=200_000_000)
+	model.learn(total_timesteps=200_000_000_000)
+
 
 def test(env, actor_model):
 	"""
@@ -78,27 +80,29 @@ def test(env, actor_model):
 	# independently as a binary file that can be loaded in with torch.
 	eval_policy(policy=policy, env=env, render=True)
 
-def main(args):
+
+def main(arguments):
 	"""
 		The main function to run.
 		Parameters:
-			args - the arguments parsed from command line
+			arguments - the arguments parsed from command line
 		Return:
 			None
 	"""
 	# NOTE: Here's where you can set hyperparameters for PPO. I don't include them as part of
-	# ArgumentParser because it's too annoying to type them every time at command line. Instead, you can change them here.
+	# ArgumentParser because it's too annoying to type them every time at command line.
+	# Instead, you can change them here.
 	# To see a list of hyperparameters, look in ppo.py at function _init_hyperparameters
 	hyperparameters = {
-				'timesteps_per_batch': 2048,
-				'max_timesteps_per_episode': 200,
-				'gamma': 0.99,
-				'n_updates_per_iteration': 10,
-				'lr': 3e-4,
-				'clip': 0.2,
-				'render': True,
-				'render_every_i': 10
-			  }
+		'timesteps_per_batch': 32,
+		'max_timesteps_per_episode': 1_250,
+		'gamma': 0.99,
+		'n_updates_per_iteration': 10,
+		'lr': 3e-4,
+		'clip': 0.2,
+		'render': True,
+		'render_every_i': 10
+	}
 
 	# Creates the environment we'll be running. If you want to replace with your own
 	# custom environment, note that it must inherit Gym and have both continuous
@@ -106,11 +110,13 @@ def main(args):
 	env = SimulationEnv()
 
 	# Train or test, depending on the mode specified
-	if args.mode == 'train':
-		train(env=env, hyperparameters=hyperparameters, actor_model=args.actor_model, critic_model=args.critic_model)
+	if arguments.mode == 'train':
+		train(env=env, hyperparameters=hyperparameters, actor_model=arguments.actor_model,
+			critic_model=arguments.critic_model, rival_actor=arguments.rival_actor_model)
 	else:
-		test(env=env, actor_model=args.actor_model)
+		test(env=env, actor_model=arguments.actor_model)
+
 
 if __name__ == '__main__':
-	args = get_args() # Parse arguments from command line
+	args = get_args()  # Parse arguments from command line
 	main(args)

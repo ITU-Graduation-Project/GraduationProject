@@ -5,25 +5,25 @@
 """
 
 import gym
-import time
-
 import numpy as np
 import time
 import torch
 import torch.nn as nn
 from torch.optim import Adam
 from torch.distributions import MultivariateNormal
-from network import FeedForwardNN
+from PPO.network import FeedForwardNN
 
 from torch.utils.tensorboard import SummaryWriter
+
 writer = SummaryWriter()
+
 
 class PPO:
     """
         This is the PPO class we will use as our model in main.py
     """
 
-    def __init__(self, policy_class, env, **hyperparameters):
+    def __init__(self, policy_class, env, rival_actor, **hyperparameters):
         """
             Initializes the PPO model, including hyperparameters.
             Parameters:
@@ -47,7 +47,7 @@ class PPO:
         self.act_dim = env.action_space.shape[0]
 
         self.rival_policy = FeedForwardNN(self.obs_dim, self.act_dim)
-        self.rival_policy.load_state_dict(torch.load("rival_actor.pth"))
+        self.rival_policy.load_state_dict(torch.load(rival_actor))
 
         # Initialize actor and critic networks
         self.actor = policy_class(self.obs_dim, self.act_dim)  # ALG STEP 1
@@ -69,11 +69,16 @@ class PPO:
             'batch_lens': [],  # episodic lengths in batch
             'batch_rews': [],  # episodic returns in batch
             'actor_losses': [],  # losses of actor network in current iteration
-            'avg_batch_losses':[],
-            'avg_batch_rewards':[],
+            'avg_batch_losses': [],
+            'avg_batch_rewards': [],
+            'avg_batch_rewards_rival': [],
+            'batch_rews_rival': [],
+            'batch_win': [],
+            'batch_lose': [],
+            'batch_draw': []
         }
 
-    def arrangeObservation(obs, x):
+    def arrange_observation(obs, x):
         """
             x parametresine göre yaw pitch roll position çikarilacak
             y parametresine göre noise eklenip çikarilacak
@@ -95,8 +100,7 @@ class PPO:
         i_so_far = 0  # Iterations ran so far
         while t_so_far < total_timesteps:  # ALG STEP 2
             # Autobots, roll out (just kidding, we're collecting our batch simulations here)
-            batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lens = self.rollout()  # ALG STEP 3
-
+            batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lens, batch_win, batch_lose, batch_draw = self.rollout()  # ALG STEP 3
             # Calculate how many timesteps we collected this batch
             t_so_far += np.sum(batch_lens)
 
@@ -160,29 +164,8 @@ class PPO:
 
             # Save our model if it's time
             if i_so_far % self.save_freq == 0:
-                torch.save(self.actor.state_dict(), './ppo_actor.pth')
-                torch.save(self.critic.state_dict(), './ppo_critic.pth')
-
-    def revert_obs_for_rival(self, observations):
-        obs_rival = np.zeros(11)
-
-        obs_rival[0] = 1 - observations[0]
-        obs_rival[1] = 1 - observations[1]
-        obs_rival[2] = 1 - observations[2]
-
-        obs_rival[3] = observations[7]
-        obs_rival[4] = observations[8]
-        obs_rival[5] = observations[9]
-
-        obs_rival[6] = observations[10]
-
-        obs_rival[7] = observations[3]
-        obs_rival[8] = observations[4]
-        obs_rival[9] = observations[5]
-
-        obs_rival[10] = observations[6]
-
-        return obs_rival
+                torch.save(self.actor.state_dict(), 'PPO/weights/backup/ppo_actor.pth')
+                torch.save(self.critic.state_dict(), 'PPO/weights/backup/ppo_critic.pth')
 
     def rollout(self):
         """
@@ -203,23 +186,29 @@ class PPO:
         batch_acts = []
         batch_log_probs = []
         batch_rews = []
-        batch_rtgs = []
+        batch_rews_rival = []
         batch_lens = []
+        batch_win = []
+        batch_lose = []
+        batch_draw = []
 
         # Episodic data. Keeps track of rewards per episode, will get cleared
         # upon each new episode
-        ep_rews = []
 
         t = 0  # Keeps track of how many timesteps we've run so far this batch
         episode_number = 0
         # Keep simulating until we've run more than or equal to specified timesteps per batch
+
+        numb_win = 0
+        numb_lose = 0
+        numb_draw = 0
         while t < self.timesteps_per_batch:
+            # print("t:", t)
             episode_number += 1
             ep_rews = []  # rewards collected per episode
-
+            ep_rews_rival = []
             # Reset the environment. sNote that obs is short for observation.
-            obs = self.env.reset()
-            done = False
+            obs, rival_obs = self.env.reset()
 
             # Run an episode for a maximum of max_timesteps_per_episode timesteps
             for ep_t in range(self.max_timesteps_per_episode):
@@ -227,48 +216,66 @@ class PPO:
                 if self.render and (self.logger['i_so_far'] % self.render_every_i == 0) and len(batch_lens) == 0:
                     self.env.render()
                     pass
-                t += 1  # Increment timesteps ran this batch so far
 
                 # Track observations in this batch
                 batch_obs.append(obs)
 
                 # Calculate action and make a step in the env.
                 # Note that rew is short for reward.
-                action, log_prob = self.get_action(obs)
-
-                rival_obs = self.revert_obs_for_rival(obs)
 
                 rival_action = self.rival_policy(rival_obs).detach().numpy()
 
+                action, log_prob = self.get_action(obs)
+
                 both_action = np.concatenate((action, rival_action), axis=None)
 
-                obs, rew, done, _ = self.env.step(both_action)
+                obs, rival_obs, rew, done, rival_rew = self.env.step(both_action)
                 # Track recent reward, action, and action log probability
                 ep_rews.append(rew)
+                ep_rews_rival.append(rival_rew)
+
                 batch_acts.append(action)
                 batch_log_probs.append(log_prob)
 
                 # If the environment tells us the episode is terminated, break
-                if done:
+                if done != 0:
                     break
 
             self.env.close()
 
+            if done == 1:
+                numb_win += 1
+            elif done == -1:
+                numb_lose += 1
+            else:
+                numb_draw += 1
             # Track episodic lengths and rewards
             batch_lens.append(ep_t + 1)
             batch_rews.append(ep_rews)
+            batch_rews_rival.append(ep_rews_rival)
+
+            t += 1  # Increment timesteps ran this batch so far
+
+        batch_win.append(numb_win)
+        batch_lose.append(numb_lose)
+        batch_draw.append(numb_draw)
 
         # Reshape data as tensors in the shape specified in function description, before returning
         batch_obs = torch.tensor(batch_obs, dtype=torch.float)
         batch_acts = torch.tensor(batch_acts, dtype=torch.float)
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float)
         batch_rtgs = self.compute_rtgs(batch_rews)  # ALG STEP 4
-
+        # batch_rtgs_rival = self.compute_rtgs(batch_rews_rival)
         # Log the episodic returns and episodic lengths in this batch.
         self.logger['batch_rews'] = batch_rews
+        self.logger['batch_rews_rival'] = batch_rews_rival
         self.logger['batch_lens'] = batch_lens
 
-        return batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lens
+        self.logger['batch_win'] = batch_win
+        self.logger['batch_lose'] = batch_lose
+        self.logger['batch_draw'] = batch_draw
+
+        return batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lens, batch_win, batch_lose, batch_draw #, batch_rtgs_rival
 
     def compute_rtgs(self, batch_rews):
         """
@@ -364,7 +371,7 @@ class PPO:
         """
         # Initialize default values for hyperparameters
         # Algorithm hyperparameters
-        self.timesteps_per_batch = 4800  # Number of timesteps to run per batch
+        self.timesteps_per_batch = 8  # Number of timesteps to run per batch
         self.max_timesteps_per_episode = 1600  # Max number of timesteps per episode
         self.n_updates_per_iteration = 5  # Number of times to update actor/critic per iteration
         self.lr = 0.005  # Learning rate of actor optimizer
@@ -382,7 +389,7 @@ class PPO:
             exec('self.' + param + ' = ' + str(val))
 
         # Sets the seed if specified
-        if self.seed != None:
+        if self.seed is not None:
             # Check if our seed is valid first
             assert (type(self.seed) == int)
 
@@ -409,74 +416,83 @@ class PPO:
         t_so_far = self.logger['t_so_far']
         i_so_far = self.logger['i_so_far']
         avg_ep_lens = np.mean(self.logger['batch_lens'])
-        avg_ep_rews = np.mean([np.sum(ep_rews) for ep_rews in self.logger['batch_rews']])
+        avg_ep_rews = np.mean([np.mean(ep_rews) for ep_rews in self.logger['batch_rews']])
+        avg_ep_rews_last_50 = [np.mean(ep_rews[-50:]) for ep_rews in self.logger['batch_rews']]
+        avg_ep_rews_rival = np.mean([np.mean(ep_rews) for ep_rews in self.logger['batch_rews_rival']])
+        avg_ep_rews_rival_last_50 = [np.mean(ep_rews[-50:]) for ep_rews in self.logger['batch_rews_rival']]
         avg_actor_loss = np.mean([losses.float().mean() for losses in self.logger['actor_losses']])
 
         # Round decimal places for more aesthetic logging messages
         avg_ep_lens = round(avg_ep_lens, 2)
         avg_ep_rews = round(avg_ep_rews, 2)
+        avg_ep_rews_rival = round(avg_ep_rews_rival, 2)
         avg_actor_loss = round(avg_actor_loss, 5)
 
-
         self.logger['avg_batch_losses'].append(avg_actor_loss)
+
         self.logger['avg_batch_rewards'].append(avg_ep_rews)
-        
-        lossArray = self.logger['avg_batch_losses'][-10:]
-        avg_10_loss = sum(lossArray) / len(lossArray)
-        avg_10_loss = round(avg_10_loss,5)
-        min_10_loss = min(lossArray)
-        max_10_loss = max(lossArray)
+        self.logger['avg_batch_rewards_rival'].append(avg_ep_rews_rival)
 
-        rewardArray = self.logger['avg_batch_rewards'][-10:]
-        avg_10_reward = sum(rewardArray) / len(rewardArray)
-        avg_10_reward = round(avg_10_reward,2)
-        min_10_reward = min(rewardArray)
-        max_10_reward = max(rewardArray)
+        loss_array = self.logger['avg_batch_losses'][-50:]
+        avg_50_loss = sum(loss_array) / len(loss_array)
+        avg_50_loss = round(avg_50_loss, 5)
+        min_50_loss = min(loss_array)
+        max_50_loss = max(loss_array)
 
+        reward_array = avg_ep_rews_last_50
+        avg_50_reward = sum(reward_array) / len(reward_array)
+        avg_50_reward = round(avg_50_reward, 2)
+        min_50_reward = min(reward_array)
+        max_50_reward = max(reward_array)
+
+        reward_array_rival = avg_ep_rews_rival_last_50
+        avg_50_reward_rival = sum(reward_array_rival) / len(reward_array_rival)
+        avg_50_reward_rival = round(avg_50_reward_rival, 2)
+        min_50_reward_rival = min(reward_array_rival)
+        max_50_reward_rival = max(reward_array_rival)
 
         # Print logging statements
         print(flush=True)
         print(f"-------------------- Iteration #{i_so_far} --------------------", flush=True)
         print(f"Average Episodic Length: {avg_ep_lens}", flush=True)
         print(f"Average Episodic Return: {avg_ep_rews}", flush=True)
+        print(f"Average Episodic Return Rival: {avg_ep_rews_rival}", flush=True)
         print(f"Average Loss: {avg_actor_loss}", flush=True)
         print(f"Timesteps So Far: {t_so_far}", flush=True)
         print(f"Iteration took: {delta_t} secs", flush=True)
         print(f"------------------------------------------------------", flush=True)
         print(flush=True)
-        print("[Avg,Max,Min Loss]",avg_10_loss,max_10_loss,min_10_loss)
-        print("[Avg,Max,Min Reward]",avg_10_reward,max_10_reward,min_10_reward)
-        print("List Array Length Loss, Reward",len(lossArray),len(rewardArray))
+        print("[Avg,Max,Min Loss]", avg_50_loss, max_50_loss, min_50_loss)
+        print("[Avg,Max,Min Reward]", avg_50_reward, max_50_reward, min_50_reward)
+        print("Rival [Avg,Max,Min Reward]", avg_50_reward_rival, max_50_reward_rival, min_50_reward_rival)
+        print("List Array Length Loss, Reward", len(loss_array), len(reward_array))
+        print("wins loses draws", self.logger['batch_win'][0], self.logger['batch_lose'][0], self.logger['batch_draw'][0])
         print(f"------------------------------------------------------", flush=True)
         print(flush=True)
-        
 
+        writer.add_scalar("general/AVG_episode_rewards", float(avg_ep_rews), i_so_far)
+        writer.add_scalar("general/AVG_rival_episode_rewards", float(avg_ep_rews_rival), i_so_far)
+        writer.add_scalar("general/AVG_Loss", float(avg_actor_loss), i_so_far)
 
-        writer.add_scalar("AVG_Loss/Episode",float(avg_10_loss),i_so_far)
-        writer.add_scalar("AVG_Reward/Episode",float(avg_10_reward),i_so_far)
+        writer.add_scalar("res/number_of_wins", int(self.logger['batch_win'][0]), i_so_far)
+        writer.add_scalar("res/number_of_loses", int(self.logger['batch_lose'][0]), i_so_far)
+        writer.add_scalar("res/number_of_draws", int(self.logger['batch_draw'][0]), i_so_far)
 
-        writer.add_scalar("MIN_Loss/Episode",float(min_10_loss),i_so_far)
-        writer.add_scalar("MIN_Reward/Episode",float(min_10_reward),i_so_far)
+        writer.add_scalar("last_50_episode/AVG_Reward", float(avg_50_reward), i_so_far)
+        writer.add_scalar("last_50_episode/AVG_Reward_rival", float(avg_50_reward_rival), i_so_far)
 
-        writer.add_scalar("MAX_Loss/Episode",float(max_10_loss),i_so_far)
-        writer.add_scalar("MAX_Reward/Episode",float(max_10_reward),i_so_far)
+        writer.add_scalar("last_50_episode/MIN_Reward", float(min_50_reward), i_so_far)
+        writer.add_scalar("last_50_episode/MIN_Reward_rival", float(min_50_reward_rival), i_so_far)
 
-        #log loss and rewards for each 10 episode separetly
-        if(i_so_far%10==0):
-            writer.add_scalar("AVG_Loss_per10/Episode",float(avg_10_loss),i_so_far/10)
-            writer.add_scalar("AVG_Reward_per10/Episode",float(avg_10_reward),i_so_far/10)
+        writer.add_scalar("last_50_episode/MAX_Reward", float(max_50_reward), i_so_far)
+        writer.add_scalar("last_50_episode/MAX_Reward_rival", float(max_50_reward_rival), i_so_far)
 
-            writer.add_scalar("MIN_Loss_per10/Episode",float(min_10_loss),i_so_far/10)
-            writer.add_scalar("MIN_Reward_per10/Episode",float(min_10_reward),i_so_far/10)
+        writer.add_scalar("general/avg_ep_lens", float(avg_ep_lens), i_so_far)
 
-            writer.add_scalar("MAX_Loss_per10/Episode",float(max_10_loss),i_so_far/10)
-            writer.add_scalar("MAX_Reward_per10/Episode",float(max_10_reward),i_so_far/10)
-
-
-        writer.add_scalar("delta_t/Episode",float(delta_t),i_so_far)
-
+        writer.add_scalar("delta_t/Episode", float(delta_t), i_so_far)
 
         # Reset batch-specific logging data
         self.logger['batch_lens'] = []
         self.logger['batch_rews'] = []
+        self.logger['batch_rews_rival'] = []
         self.logger['actor_losses'] = []

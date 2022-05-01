@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 import numpy as np
 
+import sys
+
 numbers = re.compile(r'(\d+)')
 
 
@@ -25,6 +27,10 @@ for infile in sorted(glob.glob('*.txt'), key=numericalSort):
 
 global counter, np_rewards
 counter = 0
+
+folder = f"{sys.argv[1]}/"
+print(sys.argv)
+print(sys.argv[1])
 
 
 def update_lines(num, dataLines, lines):
@@ -45,14 +51,14 @@ def update_lines(num, dataLines, lines):
     return lines
 
 
-sims = sorted(os.listdir("sims"), key=numericalSort, reverse=True)
+sims = sorted(os.listdir(folder), key=numericalSort, reverse=True)
 print(sims)
 
 for i in sims:
     if "sim" in i:
         continue
-    nparr = np.load("sims/" + "locations_" + i.split("_")[1].split(".")[0] + ".npy")
-    np_rewards = np.load("sims/" + "rewards_" + i.split("_")[1].split(".")[0] + ".npy")
+    nparr = np.load(folder + "locations_" + i.split("_")[1].split(".")[0] + ".npy")
+    np_rewards = np.load(folder + "rewards_" + i.split("_")[1].split(".")[0] + ".npy")
     print(max(np.sum(np_rewards, axis=1) / 2))
     print(i)
     if max(np.sum(np_rewards, axis=1) / 2) < 8:
